@@ -1,0 +1,122 @@
+{
+  "products": [
+    {
+      "categoria": "Collares",
+      "category": "Collares",
+      "color": "Dorado | Perla | Beige",
+      "colors": [
+        "Dorado",
+        "Perla",
+        "Beige"
+      ],
+      "desc": "Collar delicado con brillo nacarado, ideal para regalar y usar a diario.",
+      "descripcion": "Collar delicado con brillo nacarado, ideal para regalar y usar a diario.",
+      "externalId": "25",
+      "id": "p1",
+      "imagenes": [
+        "https://images.unsplash.com/photo-1599643478518-a784e5dc4c8f?auto=format&fit=crop&w=900&q=84"
+      ],
+      "images": [
+        "https://images.unsplash.com/photo-1599643478518-a784e5dc4c8f?auto=format&fit=crop&w=900&q=84"
+      ],
+      "material": "Acero inoxidable",
+      "name": "Collar Aurora Nacar",
+      "nombre": "Collar Aurora Nacar",
+      "precioUSD": 18,
+      "price": 18,
+      "published": true,
+      "rating": 5,
+      "sku": "SUB-001",
+      "stock": 14,
+      "tag": "Nuevo"
+    },
+    {
+      "categoria": "Anillos",
+      "category": "Anillos",
+      "color": "Dorado | Marron",
+      "colors": [
+        "Dorado",
+        "Marron"
+      ],
+      "desc": "Anillo elegante de acabado calido para combinar con piezas minimalistas.",
+      "descripcion": "Anillo elegante de acabado calido para combinar con piezas minimalistas.",
+      "externalId": "26",
+      "id": "p2",
+      "imagenes": [
+        "https://images.unsplash.com/photo-1605100804763-247f67b3557e?auto=format&fit=crop&w=900&q=84"
+      ],
+      "images": [
+        "https://images.unsplash.com/photo-1605100804763-247f67b3557e?auto=format&fit=crop&w=900&q=84"
+      ],
+      "material": "Bano de oro",
+      "name": "Anillo Alba",
+      "nombre": "Anillo Alba",
+      "precioUSD": 14,
+      "price": 14,
+      "published": true,
+      "rating": 5,
+      "sku": "SUB-002",
+      "stock": 9,
+      "tag": "Favorito"
+    },
+    {
+      "categoria": "Pulseras",
+      "category": "Pulseras",
+      "color": "Plateado | Negro",
+      "colors": [
+        "Plateado",
+        "Negro"
+      ],
+      "desc": "Pulsera fina con ajuste comodo para uso diario.",
+      "descripcion": "Pulsera fina con ajuste comodo para uso diario.",
+      "externalId": "27",
+      "id": "p3",
+      "imagenes": [
+        "https://images.unsplash.com/photo-1611591437281-460bfbe1220a?auto=format&fit=crop&w=900&q=84"
+      ],
+      "images": [
+        "https://images.unsplash.com/photo-1611591437281-460bfbe1220a?auto=format&fit=crop&w=900&q=84"
+      ],
+      "material": "Acero",
+      "name": "Pulsera Serena",
+      "nombre": "Pulsera Serena",
+      "precioUSD": 12,
+      "price": 12,
+      "published": true,
+      "rating": 4.8,
+      "sku": "SUB-003",
+      "stock": 6,
+      "tag": "Disponible"
+    },
+    {
+      "categoria": "Zarcillos",
+      "category": "Zarcillos",
+      "color": "Dorado | Plateado",
+      "colors": [
+        "Dorado",
+        "Plateado"
+      ],
+      "desc": "Zarcillos livianos para looks limpios, frescos y femeninos.",
+      "descripcion": "Zarcillos livianos para looks limpios, frescos y femeninos.",
+      "externalId": "28",
+      "id": "p4",
+      "imagenes": [
+        "https://images.unsplash.com/photo-1630019852942-f89202989a59?auto=format&fit=crop&w=900&q=84"
+      ],
+      "images": [
+        "https://images.unsplash.com/photo-1630019852942-f89202989a59?auto=format&fit=crop&w=900&q=84"
+      ],
+      "material": "Acero inoxidable",
+      "name": "Zarcillos Brisa",
+      "nombre": "Zarcillos Brisa",
+      "precioUSD": 10,
+      "price": 10,
+      "published": true,
+      "rating": 4.9,
+      "sku": "SUB-004",
+      "stock": 22,
+      "tag": "Top"
+    }
+  ],
+  "updatedAt": 1788645469000
+}
