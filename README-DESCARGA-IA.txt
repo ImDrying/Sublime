@@ -20,6 +20,9 @@ Campos usados en cada producto:
 Importante para Hostinger/local:
 
 - Debes tener Firestore creado en el proyecto Firebase sublimeweb-218bd.
+- Puedes cambiar la base de datos sin tocar codigo desde Panel ADMIN > Datos > Base de datos en nube.
+- Pega alli la configuracion web de Firebase, pulsa Guardar conexion y luego recarga la pagina.
+- El boton Probar conexion verifica que la coleccion productos sea accesible.
 - Debes permitir el dominio donde hostees la web en Firebase si activas restricciones de API key.
 - Revisa las reglas de Firestore. El login ADMIN actual protege la interfaz, pero las reglas de Firestore son las que protegen la base de datos frente a accesos directos.
 - catalog-data.json queda solo como respaldo si Firebase no carga.

@@ -1,4 +1,4 @@
-import { db } from "./firebase.js";
+import { db, defaultFirebaseConfig, getFirebaseConnectionText, resetFirebaseConnectionConfig, setFirebaseConnectionConfig, testFirebaseConnection } from "./firebase.js";
 import {
   addDoc,
   collection,
@@ -23,10 +23,16 @@ import {
     const SHARED_CATALOG_PATH="catalog-data.json";
     const BRAND_LOGO_URL="assets/sublime-logo-2026.png";
     const LS_LOGO_VERSION="sublime_logo_version_2026_09_03_png";
+    const LS_DATABASE_API="sublime_database_api_v1";
     const FIRESTORE_COLLECTION="productos";
+    const DEFAULT_DATABASE_API_ENDPOINT=`https://firestore.googleapis.com/v1/projects/${defaultFirebaseConfig.projectId}/databases/(default)/documents/${FIRESTORE_COLLECTION}`;
     const FIRESTORE_AMBASSADORS_COLLECTION="cupones_embajadores";
     const FIRESTORE_COUPON_HISTORY_COLLECTION="historial_usos_cupones";
+    const DEFAULT_DATABASE_API_REFRESH_SECONDS=15;
+    const MIN_DATABASE_API_REFRESH_SECONDS=5;
+    const MAX_DATABASE_API_REFRESH_SECONDS=3600;
     let firestoreApi=null,firestoreUnsubscribe=null,firestoreAmbassadorsUnsubscribe=null,firestoreCouponHistoryUnsubscribe=null,firestoreOnline=false,firestoreBooted=false,firestoreWriteTimers=new Map();
+    let databaseApiRefreshTimer=null,databaseApiRefreshPromise=null,databaseApiRefreshEventsBound=false,databaseApiSnapshotSignature="";
     const DEFAULT_IMAGE="https://images.unsplash.com/photo-1515562141207-7a88fb7ce338?auto=format&fit=crop&w=1100&q=84";
     const FALLBACK_IMAGE="https://images.unsplash.com/photo-1617038260897-41a1f14a8ca0?auto=format&fit=crop&w=900&q=84";
     const JEWEL_COLORS=["Dorado","Plateado","Oro rosa","Negro","Blanco","Perla","Beige","Marrón","Rojo","Azul","Verde","Rosa","Morado","Amarillo","Naranja","Transparente"];
@@ -139,6 +145,229 @@ import {
       firestoreApi={db,collection,doc,addDoc,setDoc,getDoc,updateDoc,deleteDoc,onSnapshot,getDocs,query,where,increment,serverTimestamp};
       return firestoreApi;
     }
+    function normalizeDatabaseApiRefreshSeconds(value){
+      const parsed=Math.round(Number(value));
+      if(!Number.isFinite(parsed))return DEFAULT_DATABASE_API_REFRESH_SECONDS;
+      return Math.min(MAX_DATABASE_API_REFRESH_SECONDS,Math.max(MIN_DATABASE_API_REFRESH_SECONDS,parsed));
+    }
+    function loadDatabaseApiConfig(){
+      const saved=loadJson(LS_DATABASE_API,null);
+      const savedEndpoint=text(saved?.endpoint||"").replaceAll("TU_PROJECT_ID",defaultFirebaseConfig.projectId);
+      const legacyMode=saved?.mode==="firebase"?"sdk":saved?.mode;
+      return {
+        mode:["sdk","api"].includes(legacyMode)?legacyMode:"api",
+        endpoint:savedEndpoint||DEFAULT_DATABASE_API_ENDPOINT,
+        apiKey:text(saved?.apiKey||defaultFirebaseConfig.apiKey),
+        collection:text(saved?.collection||FIRESTORE_COLLECTION)||FIRESTORE_COLLECTION,
+        refreshSeconds:normalizeDatabaseApiRefreshSeconds(saved?.refreshSeconds)
+      };
+    }
+    function saveDatabaseApiConfig(data){
+      const requestedMode=data?.mode==="firebase"?"sdk":data?.mode;
+      localStorage.setItem(LS_DATABASE_API,JSON.stringify({
+        ...data,
+        mode:requestedMode==="sdk"?"sdk":"api",
+        refreshSeconds:normalizeDatabaseApiRefreshSeconds(data?.refreshSeconds)
+      }));
+    }
+    function databaseApiConfig(){return loadDatabaseApiConfig()}
+    function databaseApiEnabled(){
+      const cfg=databaseApiConfig();
+      return cfg.mode==="api"&&!!cfg.endpoint;
+    }
+    function databaseApiRefreshSeconds(){return normalizeDatabaseApiRefreshSeconds(databaseApiConfig().refreshSeconds)}
+    function normalizeApiEndpoint(url){
+      let raw=text(url);
+      if(!raw)return "";
+      try{
+        const parsed=new URL(raw,location.origin);
+        parsed.searchParams.delete("key");
+        raw=parsed.toString();
+      }catch{}
+      return raw.replace(/\/+$/,"");
+    }
+    function firestoreRestCollectionUrl(cfg=databaseApiConfig()){
+      const endpoint=normalizeApiEndpoint(cfg.endpoint);
+      if(!endpoint)return "";
+      let url=endpoint;
+      if(/firestore\.googleapis\.com\/v1\/projects\/.+\/documents\/?$/i.test(url)){
+        url=`${url.replace(/\/+$/,"")}/${encodeURIComponent(cfg.collection||FIRESTORE_COLLECTION)}`;
+      }
+      if(!/\/documents\//i.test(url)&&/firestore\.googleapis\.com/i.test(url)){
+        url=`${url}/${encodeURIComponent(cfg.collection||FIRESTORE_COLLECTION)}`;
+      }
+      if(cfg.apiKey){
+        const parsed=new URL(url,location.origin);
+        parsed.searchParams.set("key",cfg.apiKey);
+        url=parsed.toString();
+      }
+      return url;
+    }
+    function decodeFirestoreValue(value){
+      if(!value||typeof value!=="object")return value;
+      if("stringValue" in value)return value.stringValue;
+      if("integerValue" in value)return Number(value.integerValue);
+      if("doubleValue" in value)return Number(value.doubleValue);
+      if("booleanValue" in value)return !!value.booleanValue;
+      if("timestampValue" in value)return value.timestampValue;
+      if("arrayValue" in value)return (value.arrayValue.values||[]).map(decodeFirestoreValue);
+      if("mapValue" in value){
+        const out={};
+        Object.entries(value.mapValue.fields||{}).forEach(([k,v])=>out[k]=decodeFirestoreValue(v));
+        return out;
+      }
+      return value;
+    }
+    function encodeFirestoreValue(value){
+      if(Array.isArray(value))return {arrayValue:{values:value.map(encodeFirestoreValue)}};
+      if(value===null||value===undefined)return {nullValue:null};
+      if(typeof value==="boolean")return {booleanValue:value};
+      if(typeof value==="number")return Number.isInteger(value)?{integerValue:String(value)}:{doubleValue:value};
+      if(value&&typeof value==="object"){
+        const fields={};
+        Object.entries(value).forEach(([k,v])=>fields[k]=encodeFirestoreValue(v));
+        return {mapValue:{fields}};
+      }
+      return {stringValue:String(value)};
+    }
+    function toFirestoreRestDocument(data){
+      const fields={};
+      Object.entries(data||{}).forEach(([key,value])=>fields[key]=encodeFirestoreValue(value));
+      return {fields};
+    }
+    function fromFirestoreRestDocument(docData){
+      const data={};
+      Object.entries(docData?.fields||{}).forEach(([key,value])=>data[key]=decodeFirestoreValue(value));
+      const id=text(docData?.name).split("/").pop();
+      return productoConAliases({...data,firestoreId:id,id:data.id||id});
+    }
+    async function databaseApiRequest(url,options={}){
+      const response=await fetch(url,{...options,headers:{"Content-Type":"application/json",Accept:"application/json",...(options.headers||{})}});
+      const body=await response.text();
+      const data=body?JSON.parse(body):{};
+      if(!response.ok)throw new Error(data.error?.message||`API HTTP ${response.status}`);
+      return data;
+    }
+    async function readProductsFromDatabaseApi(){
+      const url=firestoreRestCollectionUrl();
+      const data=await databaseApiRequest(url,{method:"GET",cache:"no-store"});
+      const docs=Array.isArray(data.documents)?data.documents:[];
+      return docs.map(fromFirestoreRestDocument).sort((a,b)=>String(a.nombre).localeCompare(String(b.nombre),"es"));
+    }
+    async function createProductInDatabaseApi(product){
+      const url=firestoreRestCollectionUrl();
+      const payload=firestoreProductPayload(product);
+      const data=await databaseApiRequest(url,{method:"POST",body:JSON.stringify(toFirestoreRestDocument(payload))});
+      return text(data.name).split("/").pop();
+    }
+    async function updateProductInDatabaseApi(product){
+      const cfg=databaseApiConfig(),base=firestoreRestCollectionUrl(cfg),p=productoConAliases(product);
+      if(!p.firestoreId)return createProductInDatabaseApi(p);
+      const url=`${base}/${encodeURIComponent(p.firestoreId)}`;
+      await databaseApiRequest(url,{method:"PATCH",body:JSON.stringify(toFirestoreRestDocument(firestoreProductPayload(p)))});
+      return p.firestoreId;
+    }
+    async function deleteProductFromDatabaseApi(product){
+      if(!product?.firestoreId)return;
+      const url=`${firestoreRestCollectionUrl()}/${encodeURIComponent(product.firestoreId)}`;
+      await databaseApiRequest(url,{method:"DELETE"});
+    }
+    async function replaceDatabaseApiCatalog(incoming){
+      const current=await readProductsFromDatabaseApi();
+      for(const item of current)await deleteProductFromDatabaseApi(item);
+      for(const item of incoming)await createProductInDatabaseApi(item);
+    }
+    async function upsertDatabaseApiCatalog(incoming){
+      const current=await readProductsFromDatabaseApi();
+      const byKey=new Map(current.map(item=>[importKey(item),item]).filter(([key])=>key));
+      for(const item of incoming.map(productoConAliases)){
+        const existing=byKey.get(importKey(item));
+        if(existing)await updateProductInDatabaseApi({...existing,...item,firestoreId:existing.firestoreId,id:existing.id});
+        else await createProductInDatabaseApi(item);
+      }
+    }
+    function updateDatabaseConnectionStatus(message,state=""){
+      const el=$("databaseConnectionStatus");
+      if(!el)return;
+      el.textContent=message;
+      el.className=`small ${state||"muted"}`;
+    }
+    async function saveDatabaseConnection(){
+      try{
+        const mode=$("adminDatabaseMode")?.value||"sdk";
+        const refreshSeconds=normalizeDatabaseApiRefreshSeconds($("adminDatabaseRefreshSeconds")?.value);
+        const nextConfig={
+          mode,
+          endpoint:$("adminDatabaseApiUrl")?.value||"",
+          apiKey:$("adminDatabaseApiKey")?.value||"",
+          collection:$("adminDatabaseCollection")?.value||FIRESTORE_COLLECTION,
+          refreshSeconds
+        };
+        if(mode==="api"&&!text(nextConfig.endpoint))throw new Error("Agrega la URL/API de Firestore.");
+        saveDatabaseApiConfig(nextConfig);
+        stopDatabaseApiAutoRefresh();
+        if(firestoreUnsubscribe){firestoreUnsubscribe();firestoreUnsubscribe=null}
+        firestoreBooted=false;
+        databaseApiSnapshotSignature="";
+        if(mode==="sdk"){
+          setFirebaseConnectionConfig($("adminFirebaseConfig")?.value||"");
+          await startFirestoreCatalog({force:true});
+          updateDatabaseConnectionStatus("Modo SDK activo: onSnapshot recibe cambios de Firestore en tiempo real. Si cambiaste de proyecto, recarga una vez para cargar esa nueva configuración.","ok");
+          toast("SDK Firebase conectado en tiempo real");
+          return;
+        }
+        const items=await refreshProductsFromDatabaseApi({silent:true,forceRender:true});
+        startDatabaseApiAutoRefresh();
+        if(items===null){
+          updateDatabaseConnectionStatus(`API guardada. No respondió ahora; reintento automático cada ${refreshSeconds} segundos.`,"danger");
+          toast("API guardada con refresco automático");
+          return;
+        }
+        updateDatabaseConnectionStatus(`Modo API activo: ${items.length} producto(s). Refresco con fetch cada ${refreshSeconds} segundos.`,"ok");
+        toast("API conectada y refresco automático activo");
+      }catch(error){
+        updateDatabaseConnectionStatus(error.message||String(error),"danger");
+        toast("No pude guardar la conexión");
+      }
+    }
+    async function checkDatabaseConnection(){
+      updateDatabaseConnectionStatus("Probando conexión con la base de datos...","muted");
+      try{
+        if(($("adminDatabaseMode")?.value||"sdk")==="api"){
+          saveDatabaseApiConfig({
+            mode:"api",
+            endpoint:$("adminDatabaseApiUrl")?.value||"",
+            apiKey:$("adminDatabaseApiKey")?.value||"",
+            collection:$("adminDatabaseCollection")?.value||FIRESTORE_COLLECTION,
+            refreshSeconds:normalizeDatabaseApiRefreshSeconds($("adminDatabaseRefreshSeconds")?.value)
+          });
+          const items=await readProductsFromDatabaseApi();
+          updateDatabaseConnectionStatus(`API conectada. ${items.length} producto(s) encontrados en ${$("adminDatabaseCollection")?.value||FIRESTORE_COLLECTION}.`,"ok");
+          toast("API conectada");
+          return;
+        }
+        const result=await testFirebaseConnection();
+        updateDatabaseConnectionStatus(`Firebase conectado a ${result.projectId}. Colección productos accesible.`,"ok");
+        toast("Firebase conectado");
+      }catch(error){
+        console.warn("Prueba de base de datos falló",error);
+        updateDatabaseConnectionStatus(`No pude conectar: ${error.message||error}`,"danger");
+        toast("No pude conectar la base de datos");
+      }
+    }
+    function resetDatabaseConnection(){
+      resetFirebaseConnectionConfig();
+      localStorage.removeItem(LS_DATABASE_API);
+      const defaults=loadDatabaseApiConfig();
+      if($("adminDatabaseMode"))$("adminDatabaseMode").value=defaults.mode;
+      if($("adminDatabaseApiUrl"))$("adminDatabaseApiUrl").value=defaults.endpoint;
+      if($("adminDatabaseApiKey"))$("adminDatabaseApiKey").value=defaults.apiKey;
+      if($("adminDatabaseCollection"))$("adminDatabaseCollection").value=defaults.collection;
+      if($("adminDatabaseRefreshSeconds"))$("adminDatabaseRefreshSeconds").value=defaults.refreshSeconds;
+      if($("adminFirebaseConfig"))$("adminFirebaseConfig").value=getFirebaseConnectionText();
+      updateDatabaseConnectionStatus("Se restauró la conexión API de Sublime. Pulsa Probar conexión para verificarla.","ok");
+      toast("Conexión de Sublime restaurada");
+    }
     function firestoreProductPayload(product){
       const p=productoConAliases(product);
       return {
@@ -179,19 +408,103 @@ import {
       localStorage.setItem(LS,JSON.stringify(config));
       renderCategories();renderizarTiendaPublica();renderizarPanelOwner();renderCart();updateOwnerStats();
     }
-    async function startFirestoreCatalog(){
-      if(firestoreBooted)return;
+    function databaseApiProductsSignature(list){
+      return JSON.stringify((list||[]).map(item=>{
+        const p=productoConAliases(item);
+        return {
+          firestoreId:p.firestoreId||"",id:p.id||"",externalId:p.externalId||"",sku:p.sku||"",
+          name:p.name,category:p.category,material:p.material,price:number(p.price),stock:number(p.stock),
+          published:p.published!==false,rating:number(p.rating),color:p.color||"",colors:p.colors||[],tag:p.tag||"",
+          desc:p.desc||"",images:p.images||[],wholesale12:number(p.wholesale12),wholesale50:number(p.wholesale50),wholesale100:number(p.wholesale100)
+        };
+      }));
+    }
+    async function refreshProductsFromDatabaseApi({silent=false,forceRender=false,throwOnError=false}={}){
+      if(!databaseApiEnabled())return null;
+      if(databaseApiRefreshPromise)return databaseApiRefreshPromise;
+      databaseApiRefreshPromise=(async()=>{
+        try{
+          const latest=await readProductsFromDatabaseApi();
+          const signature=databaseApiProductsSignature(latest);
+          firestoreOnline=true;
+          if(forceRender||signature!==databaseApiSnapshotSignature){
+            databaseApiSnapshotSignature=signature;
+            applyFirestoreProducts(latest);
+          }
+          const updatedAt=new Date().toLocaleTimeString("es-VE",{hour:"2-digit",minute:"2-digit",second:"2-digit"});
+          updateDatabaseConnectionStatus(`API sincronizada · ${latest.length} producto(s) · cada ${databaseApiRefreshSeconds()} s · ${updatedAt}`,"ok");
+          return latest;
+        }catch(error){
+          firestoreOnline=false;
+          console.warn("No pude refrescar productos desde API",error);
+          updateDatabaseConnectionStatus("La API no respondió. Reintento automático activo.","danger");
+          if(!silent)toast("La API no respondió; volveré a intentar automáticamente");
+          if(throwOnError)throw error;
+          return null;
+        }
+      })();
+      try{return await databaseApiRefreshPromise}
+      finally{databaseApiRefreshPromise=null}
+    }
+    function stopDatabaseApiAutoRefresh(){
+      if(databaseApiRefreshTimer){clearInterval(databaseApiRefreshTimer);databaseApiRefreshTimer=null}
+    }
+    function bindDatabaseApiRefreshEvents(){
+      if(databaseApiRefreshEventsBound)return;
+      databaseApiRefreshEventsBound=true;
+      const resume=async()=>{
+        if(!databaseApiEnabled()||document.hidden)return;
+        stopDatabaseApiAutoRefresh();
+        await refreshProductsFromDatabaseApi({silent:true});
+        startDatabaseApiAutoRefresh();
+      };
+      document.addEventListener("visibilitychange",()=>document.hidden?stopDatabaseApiAutoRefresh():resume());
+      window.addEventListener("focus",resume);
+      window.addEventListener("online",resume);
+      window.addEventListener("offline",stopDatabaseApiAutoRefresh);
+    }
+    function startDatabaseApiAutoRefresh(){
+      stopDatabaseApiAutoRefresh();
+      if(!databaseApiEnabled()||document.hidden)return;
+      bindDatabaseApiRefreshEvents();
+      const refreshMs=databaseApiRefreshSeconds()*1000;
+      databaseApiRefreshTimer=setInterval(()=>{
+        if(document.hidden||!navigator.onLine||!databaseApiEnabled())return;
+        refreshProductsFromDatabaseApi({silent:true});
+      },refreshMs);
+    }
+    async function startFirestoreCatalog({force=false}={}){
+      if(firestoreBooted&&!force)return;
+      if(force&&firestoreUnsubscribe){firestoreUnsubscribe();firestoreUnsubscribe=null}
       firestoreBooted=true;
       if(location.protocol==="file:"){
         firestoreOnline=false;
         await loadSharedCatalog();
         return;
       }
+      const mode=databaseApiConfig().mode;
+      if(mode==="api"){
+        if(!databaseApiEnabled()){
+          firestoreOnline=false;
+          await loadSharedCatalog();
+          updateDatabaseConnectionStatus("Falta la URL de la API. Se muestra el respaldo local.","danger");
+          return;
+        }
+        const remote=await refreshProductsFromDatabaseApi({silent:true,forceRender:true});
+        startDatabaseApiAutoRefresh();
+        if(remote===null){
+          await loadSharedCatalog();
+          toast("No pude conectar la API. Se muestra respaldo local y seguiré reintentando.");
+        }
+        return;
+      }
+      stopDatabaseApiAutoRefresh();
       try{
         const api=await initFirestore();
         const col=api.collection(api.db,FIRESTORE_COLLECTION);
         firestoreUnsubscribe=api.onSnapshot(col,snapshot=>{
           firestoreOnline=true;
+          updateDatabaseConnectionStatus(`SDK en tiempo real · ${snapshot.size} producto(s) · onSnapshot activo`,"ok");
           const remote=snapshot.docs.map(firestoreProductFromDoc).sort((a,b)=>String(a.nombre).localeCompare(String(b.nombre),"es"));
           if(remote.length)applyFirestoreProducts(remote);
           else{
@@ -377,11 +690,13 @@ import {
       }catch(error){console.warn("No pude registrar uso de cupón",error);toast("Pedido confirmado, pero no pude registrar el cupón")}
     }
     async function createProductInFirestore(product){
+      if(databaseApiEnabled())return createProductInDatabaseApi(product);
       const api=await initFirestore();
       const ref=await api.addDoc(api.collection(api.db,FIRESTORE_COLLECTION),firestoreProductPayload(product));
       return ref.id;
     }
     async function updateProductInFirestore(product){
+      if(databaseApiEnabled())return updateProductInDatabaseApi(product);
       const api=await initFirestore();
       const p=productoConAliases(product);
       if(!p.firestoreId){
@@ -404,11 +719,13 @@ import {
       },650));
     }
     async function deleteProductFromFirestore(product){
+      if(databaseApiEnabled())return deleteProductFromDatabaseApi(product);
       if(!product?.firestoreId)return;
       const api=await initFirestore();
       await api.deleteDoc(api.doc(api.db,FIRESTORE_COLLECTION,product.firestoreId));
     }
     async function replaceFirestoreCatalog(incoming){
+      if(databaseApiEnabled())return replaceDatabaseApiCatalog(incoming);
       const api=await initFirestore();
       const col=api.collection(api.db,FIRESTORE_COLLECTION);
       const current=await api.getDocs(col);
@@ -416,6 +733,7 @@ import {
       for(const item of incoming)await api.addDoc(col,firestoreProductPayload(item));
     }
     async function upsertFirestoreCatalog(incoming){
+      if(databaseApiEnabled())return upsertDatabaseApiCatalog(incoming);
       const api=await initFirestore();
       const col=api.collection(api.db,FIRESTORE_COLLECTION);
       const current=await api.getDocs(col);
@@ -648,7 +966,7 @@ import {
     function detail(id){const p=products.find(x=>sameId(x.id,id));if(!p)return;const imgs=p.images||[productImage(p)];$("detailBody").innerHTML=`<div><img class="detail-img" id="detailMainImg" src="${esc(productImage(p))}" alt="${esc(p.name)}"><div class="photo-list" style="margin-top:10px">${imgs.map((im,i)=>`<button class="btn btn-light" data-detail-img="${esc(normalizeImageUrl(im))}">${i+1}</button>`).join("")}</div></div><div class="detail-panel"><p class="eyebrow">${esc(p.category)}</p><h3>${esc(p.name)}</h3><p class="muted">${esc(p.desc)}</p><p><strong>ID:</strong> ${esc(p.externalId||p.id)}</p><p><strong>SKU:</strong> ${esc(p.sku||"Sin SKU")}</p><p><strong>Material:</strong> ${esc(p.material)}</p><p><strong>Colores:</strong> ${esc(p.colors.join(", "))}</p><p><strong>Stock:</strong> ${number(p.stock)}</p><p><strong>Precio:</strong> ${money(productPrice(p))} ${config.showBs?`/ ${bs(productPrice(p))}`:""}</p><button class="btn btn-primary" data-add="${esc(p.id)}">Agregar al carrito</button><button class="btn btn-light" data-download="${esc(p.id)}">Descargar foto sin precio</button></div>`;openLayer("detailModal");lucide.createIcons()}
     function downloadPhoto(id){const p=products.find(x=>sameId(x.id,id));if(!p)return;const a=document.createElement("a");a.href=productImage(p);a.download=`${p.name.replace(/[^\p{L}\p{N}]+/gu,"-")}.jpg`;a.target="_blank";a.click()}
 
-    function loadAdmin(){const set=(id,v)=>{if($(id))$(id).value=v??""};set("adminBrand",config.brandName);set("adminWhatsapp",config.whatsapp);set("adminEmail",config.email);set("adminLogo",config.logo);set("adminHeroEyebrow",config.heroEyebrow);set("adminHeroTitle",config.heroTitle);set("adminHeroText",config.heroText);set("adminHeroImage",config.heroImage);set("adminAnnouncementText",config.announcementText||DEFAULT.announcementText);set("adminAmbassadorButtonText",config.ambassadorButtonText||DEFAULT.ambassadorButtonText);set("adminAmbassadorButtonUrl",config.ambassadorButtonUrl||"");set("adminRate",config.rate);set("adminRateApi",config.rateApi);set("adminRateField",config.rateField);set("adminAiEndpoint",config.aiEndpoint);set("adminAiModel",config.aiModel);set("adminAiSystemPrompt",config.aiSystemPrompt);set("adminShipCaracas",config.shipCaracas);set("adminShipNational",config.shipNational);set("adminFreeShipping",config.freeShipping);set("adminCouponCode",config.couponCode);set("adminCouponPercent",config.couponPercent);set("adminWholesaleDiscount",config.wholesaleDiscount);set("adminBankData",config.bankData);set("adminZelleData",config.zelleData);set("adminPaypalData",config.paypalData);set("adminDriveUrl",config.driveCatalogUrl);set("adminDriveTarget",config.driveTarget==="bank"?"append":config.driveTarget);$("adminRateAuto").checked=config.rateAuto!==false;$("adminShowBs").checked=config.showBs!==false;$("adminHideOutStock").checked=!!config.hideOutStock;$("adminAnimations").checked=config.animations!==false;$("adminDriveAuto").checked=!!config.driveAutoSync;$("adminAiEnabled").checked=!!config.aiEnabled;if($("adminAnnouncementEnabled"))$("adminAnnouncementEnabled").checked=config.announcementEnabled!==false;$("adminAiProvider").value=config.aiProvider||"openai-compatible";["Black","Brown","Beige","Gold","Cream","Sand"].forEach(k=>set("theme"+k,config.theme[k.toLowerCase()]));renderAdminProducts();renderPrivateBank();renderAdminReviews();renderSales();updateOwnerStats();setDirty(false)}
+    function loadAdmin(){const set=(id,v)=>{if($(id))$(id).value=v??""};const dbApi=databaseApiConfig();set("adminBrand",config.brandName);set("adminWhatsapp",config.whatsapp);set("adminEmail",config.email);set("adminLogo",config.logo);set("adminHeroEyebrow",config.heroEyebrow);set("adminHeroTitle",config.heroTitle);set("adminHeroText",config.heroText);set("adminHeroImage",config.heroImage);set("adminAnnouncementText",config.announcementText||DEFAULT.announcementText);set("adminAmbassadorButtonText",config.ambassadorButtonText||DEFAULT.ambassadorButtonText);set("adminAmbassadorButtonUrl",config.ambassadorButtonUrl||"");set("adminRate",config.rate);set("adminRateApi",config.rateApi);set("adminRateField",config.rateField);set("adminAiEndpoint",config.aiEndpoint);set("adminAiModel",config.aiModel);set("adminAiSystemPrompt",config.aiSystemPrompt);set("adminShipCaracas",config.shipCaracas);set("adminShipNational",config.shipNational);set("adminFreeShipping",config.freeShipping);set("adminCouponCode",config.couponCode);set("adminCouponPercent",config.couponPercent);set("adminWholesaleDiscount",config.wholesaleDiscount);set("adminBankData",config.bankData);set("adminZelleData",config.zelleData);set("adminPaypalData",config.paypalData);set("adminDriveUrl",config.driveCatalogUrl);set("adminDriveTarget",config.driveTarget==="bank"?"append":config.driveTarget);set("adminFirebaseConfig",getFirebaseConnectionText());set("adminDatabaseApiUrl",dbApi.endpoint);set("adminDatabaseApiKey",dbApi.apiKey);set("adminDatabaseCollection",dbApi.collection||FIRESTORE_COLLECTION);set("adminDatabaseRefreshSeconds",dbApi.refreshSeconds||DEFAULT_DATABASE_API_REFRESH_SECONDS);if($("adminDatabaseMode"))$("adminDatabaseMode").value=dbApi.mode||"sdk";$("adminRateAuto").checked=config.rateAuto!==false;$("adminShowBs").checked=config.showBs!==false;$("adminHideOutStock").checked=!!config.hideOutStock;$("adminAnimations").checked=config.animations!==false;$("adminDriveAuto").checked=!!config.driveAutoSync;$("adminAiEnabled").checked=!!config.aiEnabled;if($("adminAnnouncementEnabled"))$("adminAnnouncementEnabled").checked=config.announcementEnabled!==false;$("adminAiProvider").value=config.aiProvider||"openai-compatible";["Black","Brown","Beige","Gold","Cream","Sand"].forEach(k=>set("theme"+k,config.theme[k.toLowerCase()]));renderAdminProducts();renderPrivateBank();renderAdminReviews();renderSales();updateOwnerStats();setDirty(false)}
     function collectAdmin(){const val=id=>$(id)?.value??"";config.brandName=val("adminBrand");config.whatsapp=val("adminWhatsapp");config.email=val("adminEmail");config.logo=val("adminLogo");config.heroEyebrow=val("adminHeroEyebrow");config.heroTitle=val("adminHeroTitle");config.heroText=val("adminHeroText");config.heroImage=val("adminHeroImage");config.announcementEnabled=$("adminAnnouncementEnabled")?$("adminAnnouncementEnabled").checked:true;config.announcementText=val("adminAnnouncementText")||DEFAULT.announcementText;config.ambassadorButtonText=val("adminAmbassadorButtonText")||DEFAULT.ambassadorButtonText;config.ambassadorButtonUrl=val("adminAmbassadorButtonUrl");config.rate=number(val("adminRate"),config.rate);config.rateApi=val("adminRateApi");config.rateField=val("adminRateField")||"promedio";config.aiEnabled=$("adminAiEnabled").checked;config.aiProvider=$("adminAiProvider").value;config.aiEndpoint=val("adminAiEndpoint");config.aiModel=val("adminAiModel")||"gpt-4o-mini";config.aiApiKey="";config.aiSystemPrompt=val("adminAiSystemPrompt")||config.aiSystemPrompt;config.shipCaracas=number(val("adminShipCaracas"));config.shipNational=number(val("adminShipNational"));config.freeShipping=number(val("adminFreeShipping"));config.couponCode=val("adminCouponCode");config.couponPercent=number(val("adminCouponPercent"));config.wholesaleDiscount=number(val("adminWholesaleDiscount"));config.bankData=val("adminBankData");config.zelleData=val("adminZelleData");config.paypalData=val("adminPaypalData");config.driveCatalogUrl=val("adminDriveUrl");config.driveTarget=val("adminDriveTarget")||"append";if(config.driveTarget==="bank")config.driveTarget="append";config.rateAuto=$("adminRateAuto").checked;config.showBs=$("adminShowBs").checked;config.hideOutStock=$("adminHideOutStock").checked;config.animations=$("adminAnimations").checked;config.driveAutoSync=$("adminDriveAuto").checked;["black","brown","beige","gold","cream","sand"].forEach(k=>config.theme[k]=$("theme"+k[0].toUpperCase()+k.slice(1)).value);syncAdminProducts()}
     function legacyRenderAdminProducts(){const el=$("adminProducts");products=filterDeletedProducts(products.map(normalizeProduct));config.products=products;el.innerHTML=products.map(p=>{p=normalizeProduct(p);return `<article class="admin-product" data-admin-product data-admin-product-id="${esc(p.id)}"><div class="product-editor-title"><strong>${esc(p.name)}</strong><button type="button" class="btn btn-danger admin-delete-btn" data-admin-delete="${esc(p.id)}" aria-label="Eliminar ${esc(p.name)}"><i data-lucide="trash-2"></i>Eliminar</button></div><div class="grid2"><div class="field"><label>Nombre *</label><input class="input" data-p-field="name" value="${esc(p.name)}" required></div><div class="field"><label>SKU</label><input class="input" data-p-field="sku" value="${esc(p.sku)}"></div><div class="field"><label>Precio USD *</label><input class="input" type="number" step="0.01" data-p-field="price" value="${p.price}"></div><div class="field"><label>Precio Bs automático</label><input class="input" value="${bs(p.price)}" disabled></div><div class="field"><label>Stock *</label><input class="input" type="number" data-p-field="stock" value="${p.stock}"></div><div class="field"><label>Categoría *</label><input class="input" data-p-field="category" value="${esc(p.category)}"></div><div class="field"><label>Colores/Variantes *</label><input class="input" data-p-field="colors" value="${esc(p.colors.join(" | "))}"></div><div class="field"><label>Materiales *</label><input class="input" data-p-field="material" value="${esc(p.material)}"></div><div class="field full"><label>Descripción detallada *</label><textarea data-p-field="desc">${esc(p.desc)}</textarea></div><div class="field full"><label>Múltiples fotos URLs/Base64 *</label><textarea data-p-field="images">${esc((p.images||[]).join(" | "))}</textarea><label class="file-btn"><i data-lucide="image-up"></i>Subir fotos<input type="file" multiple accept="image/png,image/jpeg,image/webp" data-product-images></label><div class="photo-list">${(p.images||[]).slice(0,8).map(src=>`<img src="${esc(src)}" onerror="this.src='${FALLBACK_IMAGE}'">`).join("")}</div></div></div></article>`}).join("");bindAdminDeleteButtons();lucide.createIcons()}
     function legacySyncAdminProducts(){const byId=new Map(products.map(p=>[String(p.id),p]));products=filterDeletedProducts([...document.querySelectorAll("[data-admin-product-id]")].map(card=>{const id=String(card.dataset.adminProductId||cryptoRandom());const current=byId.get(id)||{id};const get=f=>card.querySelector(`[data-p-field="${f}"]`)?.value;return normalizeProduct({...current,id,name:get("name"),sku:get("sku"),price:get("price"),stock:get("stock"),category:get("category"),colors:get("colors"),material:get("material"),desc:get("desc"),images:get("images"),published:true})}));config.products=products}
@@ -1526,9 +1844,9 @@ import {
       renderCart();
       toast(appliedCoupon?`Cupón ${coupon} aplicado`:"Cupón no encontrado o inactivo");
     }
-    $("sortSelect").onchange=renderProducts;$("menuToggle").onclick=()=>$("mainNav").classList.toggle("mobile-active");$("searchToggle").onclick=()=>$("searchPanel").classList.toggle("active");$("goShop").onclick=()=>$("tienda").scrollIntoView({behavior:"smooth"});$("cartButton").onclick=()=>openLayer("cartDrawer");if($("heroOpenCart"))$("heroOpenCart").onclick=()=>openLayer("cartDrawer");$("footerCart").onclick=()=>openLayer("cartDrawer");$("closeCart").onclick=()=>closeLayer("cartDrawer");$("cartBackdrop").onclick=()=>closeLayer("cartDrawer");$("checkoutButton").onclick=openCheckout;$("closeCheckout").onclick=()=>closeLayer("checkoutModal");$("checkoutBackdrop").onclick=()=>closeLayer("checkoutModal");$("closeDetail").onclick=()=>closeLayer("detailModal");$("detailBackdrop").onclick=()=>closeLayer("detailModal");$("clearCartButton").onclick=()=>{cart=[];coupon="";appliedCoupon=null;saveCart();renderProducts()};$("continueShoppingButton").onclick=()=>{closeLayer("cartDrawer");$("tienda").scrollIntoView({behavior:"smooth"})};$("applyCoupon").onclick=applyCouponCode;$("applyCheckoutCoupon")&&($("applyCheckoutCoupon").onclick=applyCouponCode);$("couponInput")?.addEventListener("keydown",e=>{if(e.key==="Enter"){e.preventDefault();applyCouponCode()}});$("checkoutCouponInput")?.addEventListener("keydown",e=>{if(e.key==="Enter"){e.preventDefault();applyCouponCode()}});$("resetFilters").onclick=()=>{selectedCategory="Todos";selectedMaterial="Todos";showFavs=false;["searchInput","searchInputTop","quickSearchMirror","minPrice","maxPrice"].forEach(id=>$(id).value="");renderProducts()};$("onlyFavs").onclick=()=>{showFavs=!showFavs;renderProducts()};$("favoritesButton").onclick=()=>{showFavs=true;$("tienda").scrollIntoView({behavior:"smooth"});renderProducts()};$("syncInventoryBtn").onclick=async()=>{selectedCategory="Todos";selectedMaterial="Todos";showFavs=false;["searchInput","searchInputTop","quickSearchMirror","minPrice","maxPrice"].forEach(id=>{if($(id))$(id).value=""});await startFirestoreCatalog();if(!firestoreOnline)await loadSharedCatalog();persist();renderProducts();toast(firestoreOnline?"Inventario conectado a Firestore":"Inventario actualizado desde respaldo local")};$("categorySelect")&&($("categorySelect").onchange=e=>{selectedCategory=e.target.value;renderProducts()});$("materialSelect")&&($("materialSelect").onchange=e=>{selectedMaterial=e.target.value;renderProducts()});$("deliveryType").onchange=updateDeliveryFields;$("paymentMethod").onchange=updatePaymentBox;$("invoiceBtn").onclick=invoice;$("checkoutForm").onsubmit=e=>{e.preventDefault();confirmOrder()};$("reviewForm")&&($("reviewForm").onsubmit=e=>{e.preventDefault();submitReview()});$("exportSalesBtn")&&($("exportSalesBtn").onclick=exportSalesCsv);$("contactForm").onsubmit=e=>{e.preventDefault();window.open(whatsappUrl(`Hola ${config.brandName}, tengo una consulta:\nNombre: ${$("contactName").value}\nWhatsApp: ${$("contactPhone").value}\nConsulta: ${$("contactMessage").value}`),"_blank","noopener")};
+    $("sortSelect").onchange=renderProducts;$("menuToggle").onclick=()=>$("mainNav").classList.toggle("mobile-active");$("searchToggle").onclick=()=>$("searchPanel").classList.toggle("active");$("goShop").onclick=()=>$("tienda").scrollIntoView({behavior:"smooth"});$("cartButton").onclick=()=>openLayer("cartDrawer");if($("heroOpenCart"))$("heroOpenCart").onclick=()=>openLayer("cartDrawer");$("footerCart").onclick=()=>openLayer("cartDrawer");$("closeCart").onclick=()=>closeLayer("cartDrawer");$("cartBackdrop").onclick=()=>closeLayer("cartDrawer");$("checkoutButton").onclick=openCheckout;$("closeCheckout").onclick=()=>closeLayer("checkoutModal");$("checkoutBackdrop").onclick=()=>closeLayer("checkoutModal");$("closeDetail").onclick=()=>closeLayer("detailModal");$("detailBackdrop").onclick=()=>closeLayer("detailModal");$("clearCartButton").onclick=()=>{cart=[];coupon="";appliedCoupon=null;saveCart();renderProducts()};$("continueShoppingButton").onclick=()=>{closeLayer("cartDrawer");$("tienda").scrollIntoView({behavior:"smooth"})};$("applyCoupon").onclick=applyCouponCode;$("applyCheckoutCoupon")&&($("applyCheckoutCoupon").onclick=applyCouponCode);$("couponInput")?.addEventListener("keydown",e=>{if(e.key==="Enter"){e.preventDefault();applyCouponCode()}});$("checkoutCouponInput")?.addEventListener("keydown",e=>{if(e.key==="Enter"){e.preventDefault();applyCouponCode()}});$("resetFilters").onclick=()=>{selectedCategory="Todos";selectedMaterial="Todos";showFavs=false;["searchInput","searchInputTop","quickSearchMirror","minPrice","maxPrice"].forEach(id=>$(id).value="");renderProducts()};$("onlyFavs").onclick=()=>{showFavs=!showFavs;renderProducts()};$("favoritesButton").onclick=()=>{showFavs=true;$("tienda").scrollIntoView({behavior:"smooth"});renderProducts()};$("syncInventoryBtn").onclick=async()=>{selectedCategory="Todos";selectedMaterial="Todos";showFavs=false;["searchInput","searchInputTop","quickSearchMirror","minPrice","maxPrice"].forEach(id=>{if($(id))$(id).value=""});if(databaseApiEnabled()){const latest=await refreshProductsFromDatabaseApi({silent:false,forceRender:true});startDatabaseApiAutoRefresh();if(latest===null&&!firestoreOnline)await loadSharedCatalog()}else{await startFirestoreCatalog();if(!firestoreOnline)await loadSharedCatalog()}persist();renderProducts();toast(firestoreOnline?"Inventario sincronizado con la nube":"Inventario actualizado desde respaldo local")};$("categorySelect")&&($("categorySelect").onchange=e=>{selectedCategory=e.target.value;renderProducts()});$("materialSelect")&&($("materialSelect").onchange=e=>{selectedMaterial=e.target.value;renderProducts()});$("deliveryType").onchange=updateDeliveryFields;$("paymentMethod").onchange=updatePaymentBox;$("invoiceBtn").onclick=invoice;$("checkoutForm").onsubmit=e=>{e.preventDefault();confirmOrder()};$("reviewForm")&&($("reviewForm").onsubmit=e=>{e.preventDefault();submitReview()});$("exportSalesBtn")&&($("exportSalesBtn").onclick=exportSalesCsv);$("contactForm").onsubmit=e=>{e.preventDefault();window.open(whatsappUrl(`Hola ${config.brandName}, tengo una consulta:\nNombre: ${$("contactName").value}\nWhatsApp: ${$("contactPhone").value}\nConsulta: ${$("contactMessage").value}`),"_blank","noopener")};
     $("adminOpen").onclick=()=>{openLayer("adminDrawer");setOwner(isOwner())};$("closeAdmin").onclick=()=>closeLayer("adminDrawer");$("adminBackdrop").onclick=()=>closeLayer("adminDrawer");$("ownerLoginBtn").onclick=async()=>{if($("ownerUser").value.trim().toLowerCase()!==OWNER_USER.toLowerCase())return toast("Usuario incorrecto");if(await sha256(`${OWNER_USER}:${$("ownerPass").value}`)!==OWNER_HASH)return toast("Contraseña incorrecta");$("ownerPass").value="";setOwner(true);toast("ADMIN activado")};$("logoutAdminBtn").onclick=()=>{setOwner(false);toast("Sesión cerrada")};$("ownerPreviewStore").onclick=()=>{closeLayer("adminDrawer");$("inicio").scrollIntoView({behavior:"smooth"})};$("saveAdminBtn").onclick=()=>{collectAdmin();persist();applyTheme();hydrate();renderCategories();renderProducts();loadAdmin();setDirty(false);toast("Cambios guardados")};$("adminDrawer").addEventListener("input",e=>{if(!isOwner()&&!e.target.closest("#adminLogin"))return;if(isOwner()&&!e.target.closest("#adminLogin"))setDirty(true);if(e.target.matches("[data-p-field]"))autosaveProducts();if(e.target.id==="bankSearch")renderPrivateBank();if(e.target.matches("[data-bank-price],[data-bank-stock]"))syncBankInputs()});$("adminDrawer").addEventListener("change",async e=>{if(!isOwner()&&!e.target.closest("#adminLogin"))return;const target=e.target.closest("[data-image-target]"),prod=e.target.closest("[data-product-images]");try{if(target&&target.files[0]){const src=await readImageFile(target.files[0]);$(target.dataset.imageTarget).value=src;collectAdmin();persist();hydrate();renderProducts();setDirty(false);toast("Imagen cargada")}if(prod&&prod.files.length){const card=prod.closest("[data-admin-product]"),area=card.querySelector('[data-p-field="images"]');const foto=await readImageFile(prod.files[0]);area.value=foto;prod.value="";syncAdminProducts();persist();renderProducts();updateOwnerStats();setDirty(false);toast("Foto del producto actualizada")}}catch(err){toast(String(err))}});
-    $("addProductBtn").onclick=addAdminProduct;$("sortAdminProductsBtn").onclick=()=>{syncAdminProducts();products.sort((a,b)=>a.name.localeCompare(b.name,"es"));config.products=products;persist();renderAdminProducts();renderProducts();setDirty(false);toast("Productos ordenados")};$("updateRateBtn").onclick=()=>updateRate(false);if($("selectAllBankBtn"))$("selectAllBankBtn").onclick=()=>{config.privatePieces.forEach(p=>selectedBank.add(String(p.id)));renderPrivateBank()};if($("publishSelectedBankBtn"))$("publishSelectedBankBtn").onclick=()=>publishBank([...selectedBank]);if($("deleteSelectedBankBtn"))$("deleteSelectedBankBtn").onclick=()=>{syncBankInputs();if(!selectedBank.size)return toast("Selecciona piezas");if(!confirm(`Eliminar ${selectedBank.size} pieza(s) del banco privado?`))return;config.privatePieces=config.privatePieces.filter(p=>!selectedBank.has(String(p.id)));selectedBank.clear();persist();renderPrivateBank();setDirty(false);toast("Piezas privadas eliminadas")};$("exportConfigBtn").onclick=()=>{$("configJson").value=JSON.stringify(config,null,2);navigator.clipboard?.writeText($("configJson").value);toast("JSON copiado")};$("importConfigBtn").onclick=()=>{try{config=mergeConfig(clone(DEFAULT),JSON.parse($("configJson").value));products=config.products;persist();hydrate();renderCategories();renderProducts();loadAdmin();toast("Configuración importada")}catch{toast("JSON inválido")}};$("resetConfigBtn").onclick=()=>{if(confirm("Restaurar demo?")){config=clone(DEFAULT);products=config.products;cart=[];favorites.clear();persist();hydrate();renderCategories();renderProducts();loadAdmin()}};
+    $("addProductBtn").onclick=addAdminProduct;$("sortAdminProductsBtn").onclick=()=>{syncAdminProducts();products.sort((a,b)=>a.name.localeCompare(b.name,"es"));config.products=products;persist();renderAdminProducts();renderProducts();setDirty(false);toast("Productos ordenados")};$("updateRateBtn").onclick=()=>updateRate(false);if($("selectAllBankBtn"))$("selectAllBankBtn").onclick=()=>{config.privatePieces.forEach(p=>selectedBank.add(String(p.id)));renderPrivateBank()};if($("publishSelectedBankBtn"))$("publishSelectedBankBtn").onclick=()=>publishBank([...selectedBank]);if($("deleteSelectedBankBtn"))$("deleteSelectedBankBtn").onclick=()=>{syncBankInputs();if(!selectedBank.size)return toast("Selecciona piezas");if(!confirm(`Eliminar ${selectedBank.size} pieza(s) del banco privado?`))return;config.privatePieces=config.privatePieces.filter(p=>!selectedBank.has(String(p.id)));selectedBank.clear();persist();renderPrivateBank();setDirty(false);toast("Piezas privadas eliminadas")};$("saveDatabaseConnectionBtn")&&($("saveDatabaseConnectionBtn").onclick=saveDatabaseConnection);$("testDatabaseConnectionBtn")&&($("testDatabaseConnectionBtn").onclick=checkDatabaseConnection);$("resetDatabaseConnectionBtn")&&($("resetDatabaseConnectionBtn").onclick=resetDatabaseConnection);$("exportConfigBtn").onclick=()=>{$("configJson").value=JSON.stringify(config,null,2);navigator.clipboard?.writeText($("configJson").value);toast("JSON copiado")};$("importConfigBtn").onclick=()=>{try{config=mergeConfig(clone(DEFAULT),JSON.parse($("configJson").value));products=config.products;persist();hydrate();renderCategories();renderProducts();loadAdmin();toast("Configuración importada")}catch{toast("JSON inválido")}};$("resetConfigBtn").onclick=()=>{if(confirm("Restaurar demo?")){config=clone(DEFAULT);products=config.products;cart=[];favorites.clear();persist();hydrate();renderCategories();renderProducts();loadAdmin()}};
     function setupCatalogPaste(){const status=$("catalogImportStatus"),drop=$("catalogDrop");if(!status||!drop||$("catalogPaste"))return;const wrap=document.createElement("div");wrap.className="field catalog-paste-field";wrap.innerHTML='<label for="catalogPaste">Pegar texto del catálogo</label><textarea id="catalogPaste" placeholder="ID IMAGEN NOMBRE DEL PRODUCTO DETAL Al mayor"></textarea><button type="button" class="btn btn-light" id="parseCatalogPasteBtn">Procesar texto</button>';status.before(wrap);$("parseCatalogPasteBtn").onclick=()=>{const items=parseTextCatalog($("catalogPaste").value);if(!items.length)return toast("No encontré filas con ID, nombre y precio");previewImport(items);toast("Catálogo procesado")}}
     async function handleFile(file){try{$("catalogImportStatus").textContent=`Leyendo ${file.name}...`;previewImport(await readCatalogFile(file));toast("Catálogo previsualizado")}catch(e){console.error(e);$("catalogImportStatus").textContent=`No pude leer el catálogo: ${e.message||e}`;toast("No pude leer el catálogo")}}
     $("catalogDrop").onclick=()=>$("catalogFile").click();$("catalogFile").onchange=e=>e.target.files[0]&&handleFile(e.target.files[0]);["dragenter","dragover"].forEach(ev=>$("catalogDrop").addEventListener(ev,e=>{e.preventDefault();$("catalogDrop").classList.add("drag")}));["dragleave","drop"].forEach(ev=>$("catalogDrop").addEventListener(ev,e=>{e.preventDefault();$("catalogDrop").classList.remove("drag")}));$("catalogDrop").addEventListener("drop",e=>{const f=e.dataTransfer.files[0];if(f)handleFile(f)});if($("sendImportToBankBtn"))$("sendImportToBankBtn").onclick=importToBank;$("appendCatalogBtn").onclick=()=>publishImport(false);$("replaceCatalogBtn").onclick=()=>confirm("Reemplazar catálogo público?")&&publishImport(true);$("syncDriveBtn").onclick=()=>syncDriveCatalog(false);if($("sendDriveToBankBtn"))$("sendDriveToBankBtn").onclick=()=>importToBank();
@@ -1550,3 +1868,5 @@ import {
     ensureCouponAdminHost();renderCouponAdmin();renderWholesaleAdmin();if($("adminGoogleSheetsWebhook")){$("adminGoogleSheetsWebhook").value=config.googleSheetsWebhook||"";$("adminGoogleSheetsWebhook").addEventListener("input",e=>{config.googleSheetsWebhook=e.target.value.trim()})}
     localStorage.removeItem(LS_OWNER);clearWholesaleAccess();prioritizeCatalog();cargarProductos();migrateBrandLogo();document.querySelectorAll("#adminDrawer button").forEach(btn=>btn.type="button");setupCatalogPaste();applyTheme();hydrate();renderCategories();renderizarTiendaPublica();startFirestoreCatalog();startAmbassadorProgram();renderReviews();renderAdminReviews();renderSales();renderAmbassadorAdmin();setOwner(false);lucide.createIcons();scheduleRateSync();if(config.driveAutoSync&&config.driveCatalogUrl)syncDriveCatalog(true);
   
+
+
