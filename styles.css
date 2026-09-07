@@ -690,6 +690,8 @@ body:not(.no-anim) .chat-launch:before{
   overscroll-behavior:contain;
 }
 .admin-panel{
+  height:100dvh;
+  max-height:100dvh;
   min-height:0;
   grid-template-rows:auto minmax(0,1fr) auto;
 }
@@ -697,6 +699,8 @@ body:not(.no-anim) .chat-launch:before{
   min-height:0;
   overflow-y:auto;
   overflow-x:hidden;
+  -webkit-overflow-scrolling:touch;
+  touch-action:pan-y;
   overscroll-behavior:contain;
 }
 .cart-foot,
