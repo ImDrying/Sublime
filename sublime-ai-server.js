@@ -48,10 +48,16 @@ function readBody(req) {
 }
 
 function safeStaticPath(urlPath) {
-  const cleanPath = decodeURIComponent(urlPath.split("?")[0] || "/");
+  let cleanPath;
+  try {
+    cleanPath = decodeURIComponent(urlPath.split("?")[0] || "/");
+  } catch {
+    return null;
+  }
   const relative = cleanPath === "/" ? "index.html" : cleanPath.replace(/^\/+/, "");
   const target = path.resolve(PUBLIC_DIR, relative);
-  if (!target.startsWith(PUBLIC_DIR)) return null;
+  const relativeTarget = path.relative(PUBLIC_DIR, target);
+  if (relativeTarget.startsWith("..") || path.isAbsolute(relativeTarget)) return null;
   return target;
 }
 

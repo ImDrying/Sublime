@@ -413,6 +413,32 @@
     }
   </style>
   <link rel="stylesheet" href="./styles.css?v=20260906-ai-hosting-2">
+  <style id="client-theme-styles">
+    body.dark-theme{--premium-ink:#f7f1e7;--premium-charcoal:#eee4d6;--premium-ivory:#1b1916;--premium-mist:#24211d;--premium-line:rgba(255,244,226,.14);--muted:#c8b9a8;--line:rgba(255,244,226,.16);--cream:#211e1a;--sand:#2a2520;--beige:#493a2e;color-scheme:dark;background:linear-gradient(180deg,#171512 0%,#211d19 48%,#29231e 100%)!important}
+    body.dark-theme:before{opacity:.18!important;background-image:linear-gradient(rgba(255,244,226,.045) 1px,transparent 1px),linear-gradient(90deg,rgba(255,244,226,.045) 1px,transparent 1px)!important}
+    body.dark-theme .header{background:rgba(27,25,22,.82)!important;border-bottom-color:rgba(230,193,120,.18)!important}
+    body.dark-theme .brand-name,body.dark-theme .hero h1,body.dark-theme .head h2,body.dark-theme .footer h3,body.dark-theme .drawer-head h2,body.dark-theme .modal-head h2{color:#fff8ed!important}
+    body.dark-theme .nav a,body.dark-theme .hero-copy,body.dark-theme .head p,body.dark-theme .footer p,body.dark-theme .footer li{color:#d2c5b4!important}
+    body.dark-theme .hero{background-image:linear-gradient(90deg,rgba(23,21,18,.98),rgba(35,30,25,.88) 46%,rgba(35,30,25,.42) 75%),var(--hero-image)!important}
+    body.dark-theme .hero:after{background:linear-gradient(0deg,#211e1a 10%,rgba(33,30,26,0))!important}
+    body.dark-theme .section,body.dark-theme .footer{background:transparent!important}
+    body.dark-theme .band{background:linear-gradient(135deg,#2b241e,#211e1a)!important}
+    body.dark-theme .filters,body.dark-theme .mode-card,body.dark-theme .payment-box,body.dark-theme .panel,body.dark-theme .card,body.dark-theme .product,body.dark-theme .empty,body.dark-theme .metric{background:rgba(39,34,29,.92)!important;border-color:rgba(230,193,120,.18)!important;color:#f7f1e7}
+    body.dark-theme .product .muted,body.dark-theme .filters .muted,body.dark-theme .mode-card p,body.dark-theme .card p,body.dark-theme .payment-box li,body.dark-theme .metric span{color:#c8b9a8!important}
+    body.dark-theme .input,body.dark-theme .select,body.dark-theme textarea{background:#29241f!important;color:#fff8ed!important;border-color:rgba(230,193,120,.25)!important}
+    body.dark-theme .btn-light,body.dark-theme .icon-btn,body.dark-theme .chip,body.dark-theme .fav{background:#302921!important;color:#fff5e8!important;border-color:rgba(230,193,120,.25)!important}
+    body.dark-theme .chip.active,body.dark-theme .admin-tab.active{background:var(--black)!important;color:#fff!important}
+    body.dark-theme .footer{border-top-color:rgba(230,193,120,.16)!important}
+    body.dark-theme .store-note{background:linear-gradient(145deg,#302820,#211e1a)!important}
+    body.dark-theme .cart-panel,body.dark-theme .modal-box,body.dark-theme .chat-widget{background:linear-gradient(180deg,#29241f,#211e1a)!important;color:#fff8ed}
+    body.dark-theme .drawer-head,body.dark-theme .modal-head{background:rgba(39,34,29,.94)!important;border-bottom-color:rgba(230,193,120,.16)!important}
+    body.dark-theme .cart-item,body.dark-theme .checkout-panel,body.dark-theme .detail-panel,body.dark-theme .chat-form,body.dark-theme .bubble.bot{background:#302a23!important;color:#fff8ed;border-color:rgba(230,193,120,.18)!important}
+    body.dark-theme .chat-head{background:linear-gradient(135deg,#11110f,#5b3b2a)!important}
+    body.dark-theme .chat-form{background:#211e1a!important}
+    .theme-toggle{width:auto!important;min-width:43px;padding:0 12px!important;gap:7px;font-size:12px;font-weight:900}
+    .theme-toggle span{display:none}
+    @media(min-width:760px){.theme-toggle{display:inline-flex!important}.theme-toggle span{display:inline}}
+  </style>
 </head>
 <body>
   <div class="topbar" id="topAnnouncement"><span>Envíos nacionales por MRW y Zoom</span><span><strong>Tasa BCV al día</strong></span><span>Garantía de 6 meses por defectos de pieza</span></div>
@@ -423,6 +449,7 @@
       <div class="actions">
         <button class="icon-btn menu-btn" id="menuToggle" aria-label="Menú"><i data-lucide="menu"></i></button>
         <button class="icon-btn" id="searchToggle" aria-label="Buscar"><i data-lucide="search"></i></button>
+        <button class="icon-btn theme-toggle" id="themeToggle" type="button" aria-label="Activar modo oscuro" title="Cambiar tema"><i data-lucide="moon"></i><span>Oscuro</span></button>
         <button class="icon-btn" id="favoritesButton" aria-label="Favoritos"><i data-lucide="heart"></i><span class="count" id="favCount">0</span></button>
         <button class="icon-btn" id="cartButton" aria-label="Carrito"><i data-lucide="shopping-bag"></i><span class="count" id="cartCount">0</span></button>
       </div>
@@ -451,13 +478,13 @@
     <section class="section band" id="mayoristas"><div class="section-inner">
       <div class="head"><div><p class="eyebrow">Detal y mayoristas</p><h2>Dos formas de comprar</h2></div><p>El modo mayorista se desbloquea desde 12 piezas y se activa desde el carrito.</p></div>
       <div class="customer-mode">
-        <article class="mode-card reveal"><h3>Cliente Detal</h3><p>Navegación libre, carrito tradicional y precios visibles al detal.</p><ul><li>Compra por unidad.</li><li>Checkout por WhatsApp.</li><li>Recibo de compra PDF.</li><li>Pago móvil, Zelle, PayPal y efectivo.</li></ul></article>
-        <article class="mode-card reveal"><h3>Cliente Mayorista</h3><p>Cuando tu pedido suma 12 piezas o más, el carrito desbloquea el botón para activar el precio mayorista.</p><ul><li>Precio especial desde 12 piezas.</li><li>Activación manual desde el carrito.</li><li>El descuento se refleja en carrito y recibo.</li><li>Confirmación directa por WhatsApp.</li></ul></article>
+        <article class="mode-card reveal"><h3>Cliente Detal</h3><ul><li>Compra por unidad.</li><li>Checkout por WhatsApp.</li><li>Recibo de compra PDF.</li><li>Pago móvil, Zelle, PayPal y efectivo.</li></ul></article>
+        <article class="mode-card reveal"><h3>Cliente Mayorista</h3><ul><li>Precio especial desde 12 piezas.</li><li>Activación manual desde el carrito.</li><li>El descuento se refleja en carrito y recibo.</li><li>Confirmación directa por WhatsApp.</li></ul></article>
         </div>
     </div></section>
 
     <section class="section" id="tienda">
-      <div class="head"><div><p class="eyebrow">Tienda</p><h2>Catálogo principal</h2></div><p id="shopStatus">Piezas disponibles con manejo automático de agotados y carrito funcional.</p></div>
+      <div class="head"><div><p class="eyebrow">Tienda</p><h2>Catálogo principal</h2></div><p id="modeNotice">Piezas disponibles con manejo automático de agotados y carrito funcional.</p></div>
       <div class="shop">
         <aside class="filters">
           <p class="filter-title">Filtros</p><input class="input" id="searchInput" placeholder="Buscar producto">
@@ -465,10 +492,9 @@
           <div class="filter-group"><p class="filter-title">Material</p><select class="select" id="materialSelect"></select><div class="chips compact-chips" id="materialFilters"></div></div>
           <div class="filter-group"><p class="filter-title">Precio USD</p><div class="grid2"><input class="input" id="minPrice" type="number" placeholder="Min"><input class="input" id="maxPrice" type="number" placeholder="Max"></div></div>
           <div class="filter-group"><button class="btn btn-light btn-block" id="onlyFavs"><i data-lucide="heart"></i>Solo favoritos</button><button class="btn btn-light btn-block" id="resetFilters" style="margin-top:8px"><i data-lucide="rotate-ccw"></i>Limpiar filtros</button></div>
-          <div class="filter-group small muted"><p><strong>Ubicación:</strong> Sublime está en Caracas. Las entregas personales o por Yummy son solo para Caracas. No hacemos entregas en tienda física porque somos tienda 100% en línea.</p><p><strong>Horario:</strong> Lunes a Viernes de 9:00 a.m. a 5:00 p.m.</p></div>
+          <div class="filter-group small muted"><p><strong>Ubicación:</strong> Caracas</p><p>No hacemos entregas en tienda porque somos tienda 100% en línea.</p><p><strong>Horario:</strong> Lunes a Viernes de 9:00 a.m. a 5:00 p.m.</p></div>
         </aside>
         <div>
-          <div class="notice" id="modeNotice">Modo detal activo. Agrega 12 piezas para desbloquear mayorista.</div>
           <div class="tools"><input class="input" id="quickSearchMirror" placeholder="Búsqueda rápida"><select class="select" id="sortSelect"><option value="featured">Destacados</option><option value="priceAsc">Menor precio</option><option value="priceDesc">Mayor precio</option><option value="name">Nombre A-Z</option><option value="stock">Mayor stock</option></select><button class="btn btn-gold" id="syncInventoryBtn"><i data-lucide="refresh-cw"></i>Inventario</button></div>
           <div class="product-grid" id="productGrid"></div>
         </div>
@@ -476,7 +502,7 @@
     </section>
 
     <section class="section band" id="pagos"><div class="section-inner">
-      <div class="head"><div><p class="eyebrow">Pagos y recibo</p><h2>Compra clara desde el carrito</h2></div><p>Al confirmar se prepara el pedido por WhatsApp y se puede generar un recibo de compra.</p></div>
+      <div class="head"><div><p class="eyebrow">Pagos y recibo</p><h2>Compra clara desde el carrito</h2></div><p>Una vez confirmado, prepararemos tu pedido por WhatsApp y obtendrás el comprobante de compra.</p></div>
       <div class="payments">
         <article class="payment-box reveal"><h3>Métodos aceptados</h3><ul><li><strong>Zelle:</strong> datos visibles en checkout.</li><li><strong>PayPal:</strong> datos visibles en checkout.</li><li><strong>Pago Móvil:</strong> datos bancarios visibles en checkout.</li><li><strong>Efectivo:</strong> coordinación directa.</li><li>Tasa BCV al día.</li></ul></article>
         <article class="payment-box reveal"><h3>Garantía y cambios</h3><ul><li>Garantía de 6 meses por defectos de pieza.</li><li>Cambios por óxido o partes despegadas.</li><li>No aplica si la pieza fue dañada por uso indebido.</li><li>Atención por WhatsApp en horario laboral.</li></ul></article>
@@ -584,7 +610,7 @@
 
   <div class="toast" id="toast"></div>
 
-  <script>try{localStorage.removeItem("sublime_deleted_products_v3");localStorage.removeItem("sublime_catalog_updated_at");localStorage.removeItem("sublime_wholesale_users_v1");localStorage.removeItem("sublime_wholesale_session_v1");localStorage.removeItem("sublime_seller_v3");}catch(e){}</script>
+  <script>try{localStorage.removeItem("sublime_catalog_updated_at");localStorage.removeItem("sublime_wholesale_users_v1");localStorage.removeItem("sublime_wholesale_session_v1");localStorage.removeItem("sublime_seller_v3");}catch(e){}</script>
   <script type="module" src="./app.js?v=20260906-db-sdk-api-1"></script>
 <script type="module" src="https://static.cloudflareinsights.com/beacon.min.js/v31edd6df95cf4e85bb4c19e7a9bdbcba1788362987495" integrity="sha512-iIg7k2xntmwu6/uSb5tpc/hySgZc4eoL31yB29W6tJFo2akwjPWcEqnCEdJvGexCL0KEQwVYv5BlowfhVz26hg==" data-cf-beacon='{"version":"2024.11.0","token":"752856b75eff41b09fb434bda51535c8","r":1,"spa":2}' crossorigin="anonymous"></script>
 </body>
