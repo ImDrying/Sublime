@@ -1,0 +1,59 @@
+[
+  {
+    "id": "SALE-LOCAL-START",
+    "date": "2026-09-09T00:00:00.000Z",
+    "webhookStatus": "not-configured",
+    "items": [],
+    "customer": {
+      "name": "",
+      "whatsapp": "",
+      "address": "",
+      "map": ""
+    },
+    "delivery": "",
+    "mrwAddress": "",
+    "payment": "",
+    "paymentReference": "",
+    "proof": null,
+    "note": "",
+    "coupon": "",
+    "discount": 0,
+    "total": 0,
+    "bs": 0,
+    "errors": []
+  },
+  {
+    "id": "SALE-TEST-1",
+    "date": "2026-09-10T00:00:00.000Z",
+    "webhookStatus": "pending",
+    "items": [],
+    "customer": {
+      "name": "Juan",
+      "whatsapp": "+5800000000",
+      "address": "Casa",
+      "map": ""
+    },
+    "delivery": "Yummy / mandadito Caracas",
+    "payment": "Zelle",
+    "paymentReference": "REF-001",
+    "coupon": "",
+    "discount": 0,
+    "total": 10,
+    "bs": 10,
+    "note": "Prueba local",
+    "errors": [],
+    "createdAt": "2026-09-10T03:39:50.841Z"
+  },
+  {
+    "id": "SALE-TEST-1",
+    "date": "2026-09-10T00:00:00.000Z",
+    "total": 12.3,
+    "items": [
+      {
+        "id": "p1",
+        "qty": 1
+      }
+    ],
+    "createdAt": "2026-09-10T04:27:22.567Z"
+  }
+]
