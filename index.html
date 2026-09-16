@@ -38,7 +38,76 @@
     .color-overlay{position:absolute;inset:0;z-index:1;pointer-events:none;opacity:0;mix-blend-mode:color;transition:opacity .35s ease,background-color .35s ease}.color-overlay.active{opacity:.42}.photo .badge,.photo .fav,.photo .quick{z-index:2}.swatch{transition:transform .2s ease,box-shadow .2s ease}.swatch:hover,.swatch.selected{transform:scale(1.18);box-shadow:0 0 0 2px var(--cream),0 0 0 4px var(--copper)}
     .admin-color-list{display:flex;flex-wrap:wrap;gap:7px;margin-top:10px}.admin-color{display:inline-flex;align-items:center;gap:6px;border:1px solid var(--line);border-radius:999px;background:#fff;padding:6px 9px;color:var(--muted);font-size:11px;font-weight:700;transition:transform .2s ease,border-color .2s ease,background .2s ease}.admin-color span{width:14px;height:14px;border-radius:50%;border:1px solid rgba(33,26,23,.18)}.admin-color:hover{transform:translateY(-2px);border-color:var(--copper)}.admin-color.selected{background:var(--black);border-color:var(--black);color:#fff;box-shadow:0 6px 14px rgba(33,26,23,.16)}
     @media(max-width:620px){.header-inner{grid-template-columns:minmax(0,1fr) auto;gap:6px}.brand{min-width:0;gap:7px}.brand-logo{width:48px;height:48px}.brand-name{font-size:24px}.actions{gap:4px}.actions .icon-btn{width:36px;height:36px}.count{top:-5px;right:-5px}.brand-name{white-space:nowrap}}
-  </style>
+  
+/* Mobile quality pass: one calm, touch-first layout for the shop and Owner panel. */
+@media (max-width: 720px) {
+  :root { --mobile-gutter: 18px; }
+  body { overflow-x: hidden; }
+  .header-inner,.hero-inner,.section-inner { width: calc(100% - (var(--mobile-gutter) * 2)) !important; }
+  .section { padding: 46px var(--mobile-gutter) !important; }
+  .topbar { padding-inline: var(--mobile-gutter) !important; line-height: 1.35; }
+  .header-inner { min-height: 70px !important; gap: 10px !important; }
+  .brand-logo { width: 43px !important; height: 43px !important; }
+  .brand-name { font-size: 25px !important; }
+  .actions { gap: 7px !important; }
+  .actions .icon-btn,.icon-btn { width: 42px !important; height: 42px !important; min-width: 42px !important; }
+  .hero { min-height: auto !important; padding-block: 34px 42px !important; }
+  .hero-inner { gap: 24px !important; }
+  .hero-copy { max-width: none !important; }
+  .hero h1 { font-size: clamp(2.65rem, 14vw, 4rem) !important; line-height: .94 !important; }
+  .hero p { font-size: 1rem !important; line-height: 1.65 !important; }
+  .hero-actions,.row { gap: 10px !important; }
+  .hero-actions .btn,.row > .btn { flex: 1 1 150px; }
+  .filters,.panel,.card,.product,.payment-box,.mode-card { border-radius: 18px !important; }
+  .filters { padding: 14px !important; gap: 10px !important; }
+  .chip { min-height: 43px !important; padding-inline: 14px !important; }
+  .product-grid { grid-template-columns: 1fr !important; gap: 18px !important; }
+  .product .photo { min-height: 285px !important; }
+  .product-body { padding: 16px !important; }
+  .product h3 { font-size: 1.35rem !important; }
+  .btn { min-height: 48px !important; padding: 12px 16px !important; }
+  .contact,.reviews-layout,.checkout-grid { grid-template-columns: 1fr !important; gap: 18px !important; }
+  .footer-inner { grid-template-columns: 1fr !important; gap: 26px !important; }
+  .drawer .admin-panel { width: 100vw !important; max-width: 100vw !important; border-left: 0 !important; }
+  #adminDrawer .drawer-head { min-height: 66px !important; padding: 0 var(--mobile-gutter) !important; }
+  #adminDrawer .drawer-head h2 { font-size: 27px !important; }
+  #adminDrawer .admin-body { display: block !important; min-height: 0 !important; padding: 16px var(--mobile-gutter) 34px !important; }
+  #adminDrawer .admin-login { width: 100% !important; grid-template-columns: 1fr !important; }
+  #adminDrawer .admin-login-visual { min-height: 164px !important; padding: 24px !important; }
+  #adminDrawer .admin-login-form { padding: 28px 20px !important; }
+  #adminDrawer .admin-login-form h3 { font-size: 38px !important; }
+  #adminDrawer .admin-hero { padding: 18px !important; border-radius: 18px !important; }
+  #adminDrawer .admin-hero h3 { font-size: 30px !important; }
+  #adminDrawer .owner-stats { grid-template-columns: repeat(3,minmax(0,1fr)) !important; gap: 8px !important; }
+  #adminDrawer .owner-stat { min-width: 0; padding: 11px 8px !important; }
+  #adminDrawer .owner-stat strong { font-size: 22px !important; }
+  #adminDrawer .owner-stat span { font-size: 9px !important; letter-spacing: .05em !important; }
+  #adminDrawer .admin-tabs { position: static !important; margin: 18px 0 14px !important; padding: 5px !important; overflow-x: auto !important; overscroll-behavior-x: contain; scroll-snap-type: x proximity; }
+  #adminDrawer .admin-tab { min-height: 42px !important; flex: 0 0 auto !important; padding: 0 13px !important; white-space: nowrap; }
+  #adminDrawer .admin-grid,#adminDrawer .grid2 { grid-template-columns: 1fr !important; gap: 14px !important; }
+  #adminDrawer .grid3 { grid-template-columns: repeat(2,minmax(0,1fr)) !important; }
+  #adminDrawer .admin-card,#adminDrawer .admin-product { padding: 16px !important; border-radius: 16px !important; min-width: 0 !important; }
+  #adminDrawer .admin-card h3 { font-size: 26px !important; }
+  #adminDrawer input,#adminDrawer select,#adminDrawer textarea { min-height: 48px !important; font-size: 16px !important; }
+  #adminDrawer textarea { min-height: 110px !important; }
+  #adminDrawer .row { flex-wrap: wrap !important; }
+  #adminDrawer .row > .btn,#adminDrawer .row > .file-btn { min-width: calc(50% - 6px) !important; flex: 1 1 145px !important; }
+  #adminDrawer .photo-gallery-editor { grid-template-columns: repeat(2,minmax(0,1fr)) !important; gap: 20px !important; }
+  .social-links { display: grid; grid-template-columns: repeat(2,minmax(0,1fr)); gap: 8px; margin-top: 14px; }
+  .social-link { min-height: 42px; justify-content: center; }
+}
+@media (max-width: 380px) {
+  :root { --mobile-gutter: 14px; }
+  .brand-name { font-size: 22px !important; }
+  .actions .icon-btn { width: 38px !important; height: 38px !important; min-width: 38px !important; }
+  #adminDrawer .owner-stats { grid-template-columns: 1fr !important; }
+}
+.social-links { display:flex; flex-wrap:wrap; gap:9px; margin-top:16px; }
+.social-link { display:inline-flex; align-items:center; gap:7px; padding:9px 12px; border:1px solid var(--line); border-radius:999px; color:var(--brown); font-size:.84rem; font-weight:800; text-decoration:none; background:var(--surface); transition:transform .2s ease,box-shadow .2s ease,border-color .2s ease; }
+.social-link:hover,.social-link:focus-visible { transform:translateY(-2px); border-color:var(--gold); box-shadow:0 8px 18px rgba(92,59,34,.12); outline:none; }
+body.dark-theme .social-link { color:#f7e7c6; background:rgba(255,255,255,.05); border-color:rgba(231,194,122,.28); }
+
+</style>
   <style>
     .admin-panel{background:linear-gradient(145deg,#f7f0e8 0%,#eef0e8 100%);border-left:1px solid rgba(96,64,51,.16)}
     .admin-panel .drawer-head{min-height:78px;padding:0 24px;background:linear-gradient(120deg,var(--black),var(--brown),var(--copper));color:#fff;border-bottom:0;box-shadow:0 12px 28px rgba(33,26,23,.16)}
@@ -416,7 +485,6 @@
       .chat-widget{right:10px!important;bottom:142px!important;border-radius:16px!important}
     }
   </style>
-  <link rel="stylesheet" href="./styles.css?v=20260916-final-craft-1">
   <style id="client-theme-styles">
     body.dark-theme{--premium-ink:#f7f1e7;--premium-charcoal:#eee4d6;--premium-ivory:#1b1916;--premium-mist:#24211d;--premium-line:rgba(255,244,226,.14);--muted:#c8b9a8;--line:rgba(255,244,226,.16);--cream:#211e1a;--sand:#2a2520;--beige:#493a2e;color-scheme:dark;background:linear-gradient(180deg,#171512 0%,#211d19 48%,#29231e 100%)!important}
     body.dark-theme:before{opacity:.18!important;background-image:linear-gradient(rgba(255,244,226,.045) 1px,transparent 1px),linear-gradient(90deg,rgba(255,244,226,.045) 1px,transparent 1px)!important}
@@ -1015,6 +1083,89 @@ body.dark .toast,body.dark-theme .toast,body[data-theme="dark"] .toast{border-co
 @media (max-width:390px){.topbar{font-size:9px!important}.brand-name{font-size:23px!important}.actions{gap:3px!important}.actions .icon-btn{width:35px!important;height:35px!important;min-width:35px!important}.section{padding-inline:14px!important}.hero-inner{width:calc(100% - 28px)!important}.product .photo{min-height:250px!important}#adminDrawer .admin-body{padding:12px!important}#adminDrawer .owner-stat strong{font-size:19px!important}}
 @media (min-width:761px) and (max-width:1120px){.section{padding-inline:28px!important}.header-inner,.hero-inner,.section-inner{width:calc(100% - 56px)!important}.product-grid{grid-template-columns:repeat(2,minmax(0,1fr))!important}#adminDrawer .admin-panel{width:min(860px,92vw)!important}#adminDrawer .admin-grid{grid-template-columns:repeat(2,minmax(0,1fr))!important}}
 </style>
+<style id="responsive-access-repair">
+/* Responsive access repair: one deliberate scroll container per overlay. */
+#adminDrawer .admin-panel{
+  height:100dvh!important;
+  max-height:100dvh!important;
+  min-height:0!important;
+  display:grid!important;
+  grid-template-rows:auto minmax(0,1fr) auto!important;
+  overflow:hidden!important;
+}
+#adminDrawer .admin-body{
+  min-height:0!important;
+  height:auto!important;
+  overflow-x:hidden!important;
+  overflow-y:auto!important;
+  overscroll-behavior:contain;
+  -webkit-overflow-scrolling:touch;
+  touch-action:pan-y;
+  padding-bottom:max(28px,env(safe-area-inset-bottom))!important;
+}
+#adminDrawer .admin-foot{
+  position:relative!important;
+  z-index:2;
+  overflow:visible!important;
+  padding-bottom:max(16px,env(safe-area-inset-bottom))!important;
+}
+#adminDrawer .admin-tabs{
+  position:sticky!important;
+  top:0!important;
+  z-index:12!important;
+  overflow-x:auto!important;
+  overflow-y:hidden!important;
+  overscroll-behavior-x:contain;
+  -webkit-overflow-scrolling:touch;
+  scrollbar-width:thin;
+}
+#adminDrawer .admin-tab{touch-action:manipulation}
+.modal.active,.drawer.active{touch-action:pan-y}
+.modal .modal-box{
+  max-height:calc(100dvh - 20px)!important;
+  overscroll-behavior:contain;
+  -webkit-overflow-scrolling:touch;
+}
+@media (max-width:760px){
+  :root{--mobile-safe-x:max(16px,env(safe-area-inset-left));}
+  body{padding-bottom:env(safe-area-inset-bottom)}
+  .header-inner,.search-inner{width:calc(100% - 32px)!important}
+  .section{padding-inline:16px!important}
+  .hero-inner{width:calc(100% - 32px)!important}
+  .product .photo{min-height:clamp(248px,76vw,330px)!important}
+  .product .row,.detail-actions,.checkout-panel .row{display:grid!important;grid-template-columns:1fr!important}
+  .product .row>.btn,.detail-actions>.btn,.checkout-panel .row>.btn{width:100%!important;min-width:0!important}
+  .drawer .cart-panel,.modal .modal-box{height:100dvh!important;min-height:100dvh!important;max-height:100dvh!important}
+  .modal .modal-box{width:100%!important;border-radius:0!important;display:grid!important;grid-template-rows:auto minmax(0,1fr)!important;overflow:hidden!important}
+  .modal .checkout-body,.modal .detail{min-height:0!important;overflow-y:auto!important;overscroll-behavior:contain;-webkit-overflow-scrolling:touch;padding:16px!important}
+  #adminDrawer .admin-panel{width:100vw!important;border-left:0!important}
+  #adminDrawer .drawer-head{padding-inline:16px!important;padding-top:env(safe-area-inset-top)!important;min-height:calc(64px + env(safe-area-inset-top))!important}
+  #adminDrawer .admin-body{padding:14px 16px max(32px,env(safe-area-inset-bottom))!important;display:block!important}
+  #adminDrawer .admin-tabs{margin:14px 0!important;padding:6px!important;border-radius:14px!important;box-shadow:0 10px 24px rgba(47,30,20,.12)!important}
+  #adminDrawer .admin-tab{min-height:44px!important;padding-inline:13px!important}
+  #adminDrawer .admin-hero .row{display:grid!important;grid-template-columns:1fr 1fr!important}
+  #adminDrawer .admin-hero .row>#saveAdminBtn{grid-column:1/-1!important}
+  #adminDrawer .admin-hero .row>#dirtyState{justify-self:start!important}
+  #adminDrawer .admin-grid{grid-template-columns:minmax(0,1fr)!important}
+  #adminDrawer .admin-card,#adminDrawer .admin-product{padding:16px!important;overflow:hidden!important}
+  #adminDrawer .row{gap:10px!important}
+  #adminDrawer .row>.btn,#adminDrawer .row>.file-btn{min-height:48px!important}
+  #adminDrawer input,#adminDrawer select,#adminDrawer textarea{font-size:16px!important;max-width:100%!important}
+  #adminDrawer .owner-stats{grid-template-columns:repeat(3,minmax(0,1fr))!important}
+  #adminDrawer .owner-stat{padding:10px 6px!important}
+  #adminDrawer .owner-stat strong{font-size:clamp(18px,5vw,22px)!important}
+  #adminDrawer .owner-stat span{font-size:9px!important;overflow-wrap:anywhere!important}
+}
+@media (max-width:390px){
+  .section{padding-inline:14px!important}
+  #adminDrawer .admin-body{padding-inline:12px!important}
+  #adminDrawer .admin-hero .row{grid-template-columns:1fr!important}
+  #adminDrawer .admin-hero .row>#saveAdminBtn{grid-column:auto!important}
+  #adminDrawer .owner-stats{grid-template-columns:1fr!important}
+  #adminDrawer .owner-stat{display:flex!important;justify-content:space-between!important;align-items:center!important;padding:11px 13px!important}
+}
+</style>
+
 </head>
 <body>
   <div class="topbar" id="topAnnouncement"><span>Envíos nacionales por MRW y Zoom</span><span><strong>Tasa BCV al día</strong></span><span>Garantía de 6 meses por defectos de pieza</span></div>
@@ -1092,7 +1243,7 @@ body.dark .toast,body.dark-theme .toast,body[data-theme="dark"] .toast{border-co
 
     <section class="section" id="reseñas"><div class="head"><div><p class="eyebrow">Reseñas</p><h2>Opiniones de clientes</h2></div><p>Las reseñas se envían sin crear cuenta y quedan pendientes de aprobación en el Panel ADMIN.</p></div><div class="reviews-layout"><div class="review-list" id="reviewList"></div><form class="panel form-grid" id="reviewForm"><div class="field"><label>Nombre</label><input class="input" id="reviewName" required></div><div class="field"><label>Producto</label><input class="input" id="reviewProduct" placeholder="Opcional"></div><div class="field full"><label>Calificación</label><div class="star-rating-setup" id="reviewStars"><span data-review-star="1">★</span><span data-review-star="2">★</span><span data-review-star="3">★</span><span data-review-star="4">★</span><span data-review-star="5">★</span></div><input type="hidden" id="reviewRating" value="5"></div><div class="field full"><label>Opinión</label><textarea id="reviewText" placeholder="Me gustaron los productos..." required></textarea></div><button class="btn btn-primary" type="submit"><i data-lucide="send"></i>Enviar reseña</button></form></div></section>
 
-    <section class="section" id="contacto"><div class="contact"><aside class="panel"><h3>Contacto</h3><ul class="contact-list"><li><strong>WhatsApp</strong><span id="contactPhoneText">+58 000 000 0000</span></li><li><strong>Correo</strong><span id="contactEmailText"><a href="/cdn-cgi/l/email-protection" class="__cf_email__" data-cfemail="5e283b302a3f2d1e2d2b3c3237333b703d3133">[email&#160;protected]</a></span></li><li><strong>Instagram</strong><a id="instagramLink" href="https://www.instagram.com/sublime" target="_blank" rel="noopener">@sublime</a></li><li><strong>Entregas</strong><span>Caracas, Yummy en Caracas, MRW y Zoom nacional</span></li><li><strong>Horario</strong><span>Lunes a Viernes de 9:00 a.m. a 5:00 p.m.</span></li></ul></aside><form class="panel form-grid" id="contactForm"><div class="field"><label>Nombre</label><input class="input" id="contactName" required></div><div class="field"><label>WhatsApp</label><input class="input" id="contactPhone" required></div><div class="field full"><label>Consulta</label><textarea id="contactMessage" required></textarea></div><button class="btn btn-primary" type="submit"><i data-lucide="send"></i>Enviar consulta</button></form></div></section>
+    <section class="section" id="contacto"><div class="contact"><aside class="panel"><h3>Contacto</h3><ul class="contact-list"><li><strong>WhatsApp</strong><span id="contactPhoneText">+58 000 000 0000</span></li><li><strong>Correo</strong><span id="contactEmailText"><a href="/cdn-cgi/l/email-protection" class="__cf_email__" data-cfemail="5e283b302a3f2d1e2d2b3c3237333b703d3133">[email&#160;protected]</a></span></li><li><strong>Instagram</strong><a id="instagramLink" href="https://www.instagram.com/sublime" target="_blank" rel="noopener">@sublime</a></li><li id="tiktokContactRow" hidden><strong>TikTok</strong><a id="tiktokLink" href="#" target="_blank" rel="noopener">Ver perfil</a></li><li id="facebookContactRow" hidden><strong>Facebook</strong><a id="facebookLink" href="#" target="_blank" rel="noopener">Ver página</a></li><li id="websiteContactRow" hidden><strong>Sitio web</strong><a id="websiteLink" href="#" target="_blank" rel="noopener">Visitar sitio</a></li><li><strong>Entregas</strong><span>Caracas, Yummy en Caracas, MRW y Zoom nacional</span></li><li><strong>Horario</strong><span>Lunes a Viernes de 9:00 a.m. a 5:00 p.m.</span></li></ul></aside><form class="panel form-grid" id="contactForm"><div class="field"><label>Nombre</label><input class="input" id="contactName" required></div><div class="field"><label>WhatsApp</label><input class="input" id="contactPhone" required></div><div class="field full"><label>Consulta</label><textarea id="contactMessage" required></textarea></div><button class="btn btn-primary" type="submit"><i data-lucide="send"></i>Enviar consulta</button></form></div></section>
   </main>
 
   <footer class="footer"><div class="footer-inner"><div><img class="footer-logo" data-logo alt="Logo Sublime"><h3 data-brand>Sublime</h3><p>Tienda 100% online ubicada en Caracas.</p></div><div><h3>Comprar</h3><ul><li><a href="#tienda">Tienda</a></li><li><a href="#catalogos">Catálogos</a></li><li><a href="#mayoristas">Mayoristas</a></li><li><a href="https://www.instagram.com/sublime" target="_blank" rel="noopener">Instagram Sublime</a></li><li><button class="btn btn-light" id="footerCart">Ver carrito</button></li></ul></div><div><h3>Soporte</h3><ul><li>Pagos seguros por coordinación directa.</li><li>Garantía por defectos.</li><li>Yummy solo Caracas.</li><li>MRW y Zoom nacional.</li></ul></div><div class="store-note"><h3>Un detalle Sublime</h3><p>No hacemos entregas en tienda física porque somos tienda 100% en línea. Atendemos de lunes a viernes, 9:00 a.m. a 5:00 p.m.</p><div class="footer-jewel"><span></span></div></div></div><div class="copy">Sublime · Tienda online desde Caracas</div></footer>
@@ -1133,7 +1284,7 @@ body.dark .toast,body.dark-theme .toast,body[data-theme="dark"] .toast{border-co
           <h3>Marca</h3>
           <div class="field"><label>Nombre</label><input class="input" id="adminBrand"></div>
           <div class="field"><label>WhatsApp</label><input class="input" id="adminWhatsapp"></div>
-          <div class="field"><label>Correo</label><input class="input" id="adminEmail"></div>
+          <div class="field"><label>Correo</label><input class="input" id="adminEmail"></div><div class="field"><label>Instagram (URL o @usuario)</label><input class="input" id="adminInstagram" placeholder="https://instagram.com/tuusuario"></div><div class="field"><label>TikTok (URL)</label><input class="input" id="adminTiktok" placeholder="https://tiktok.com/@tuusuario"></div><div class="field"><label>Facebook (URL)</label><input class="input" id="adminFacebook" placeholder="https://facebook.com/tupagina"></div><div class="field"><label>Sitio web (URL)</label><input class="input" id="adminWebsite" placeholder="https://tusitio.com"></div>
           <div class="field"><label>Logo URL/Base64</label><input class="input" id="adminLogo"></div>
           <label class="file-btn"><i data-lucide="upload"></i>Subir logo PNG/JPG/WEBP<input type="file" accept="image/png,image/jpeg,image/webp" data-image-target="adminLogo"></label>
         </div>
@@ -1172,8 +1323,9 @@ body.dark .toast,body.dark-theme .toast,body[data-theme="dark"] .toast{border-co
   <div class="toast" id="toast"></div>
 
   <script>try{localStorage.removeItem("sublime_catalog_updated_at");localStorage.removeItem("sublime_wholesale_users_v1");localStorage.removeItem("sublime_wholesale_session_v1");localStorage.removeItem("sublime_seller_v3");}catch(e){}</script>
-  <script type="module" src="./app.js?v=20260916-final-craft-2"></script>
+  <script type="module" src="./app.js?v=20260916-reliability-1"></script>
 <script type="module" src="https://static.cloudflareinsights.com/beacon.min.js/v31edd6df95cf4e85bb4c19e7a9bdbcba1788362987495" integrity="sha512-iIg7k2xntmwu6/uSb5tpc/hySgZc4eoL31yB29W6tJFo2akwjPWcEqnCEdJvGexCL0KEQwVYv5BlowfhVz26hg==" data-cf-beacon='{"version":"2024.11.0","token":"752856b75eff41b09fb434bda51535c8","r":1,"spa":2}' crossorigin="anonymous"></script>
 <script type="module" src="https://static.cloudflareinsights.com/beacon.min.js/v31edd6df95cf4e85bb4c19e7a9bdbcba1788362987495" integrity="sha512-iIg7k2xntmwu6/uSb5tpc/hySgZc4eoL31yB29W6tJFo2akwjPWcEqnCEdJvGexCL0KEQwVYv5BlowfhVz26hg==" data-cf-beacon='{"version":"2024.11.0","token":"752856b75eff41b09fb434bda51535c8","r":1,"spa":2}' crossorigin="anonymous"></script>
 </body>
 </html>
+

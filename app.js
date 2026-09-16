@@ -37,7 +37,7 @@ import {
     const FALLBACK_IMAGE="https://images.unsplash.com/photo-1617038260897-41a1f14a8ca0?auto=format&fit=crop&w=900&q=84";
     const JEWEL_COLORS=["Dorado","Plateado","Oro rosa","Negro","Blanco","Perla","Beige","Marrón","Rojo","Azul","Verde","Rosa","Morado","Amarillo","Naranja","Transparente"];
     const DEFAULT={
-      brandName:"Sublime", whatsapp:"+580000000000", email:"ventas@sublime.com", logo:BRAND_LOGO_URL, heroImage:DEFAULT_IMAGE,
+      brandName:"Sublime", whatsapp:"+580000000000", email:"ventas@sublime.com", instagram:"https://www.instagram.com/sublime", tiktok:"", facebook:"", website:"", logo:BRAND_LOGO_URL, heroImage:DEFAULT_IMAGE,
       heroEyebrow:"Joyería seleccionada para cada día", heroTitle:"Sublime",
       heroText:"Compra joyería online con catálogo interactivo, carrito, precios en dólares y bolívares, pagos por Zelle, PayPal, Pago Móvil o efectivo, y confirmación directa por WhatsApp.",
       announcementEnabled:true,
@@ -922,7 +922,10 @@ import {
     function updatePaymentBox(){const box=$("bankData");if(!box)return;box.textContent=paymentDetails();box.classList.add("active")}
     function renderAnnouncement(){const bar=$("topAnnouncement");if(!bar)return;bar.classList.toggle("hide",config.announcementEnabled===false);const parts=splitList(config.announcementText||DEFAULT.announcementText);bar.innerHTML=(parts.length?parts:splitList(DEFAULT.announcementText)).map((part,i)=>`<span>${i===1?`<strong>${esc(part)}</strong>`:esc(part)}</span>`).join("")}
     function updateAmbassadorButton(){const button=$("ambassadorApplyButton");if(!button)return;const label=button.querySelector("span")||button;label.textContent=text(config.ambassadorButtonText)||DEFAULT.ambassadorButtonText;const url=text(config.ambassadorButtonUrl);button.href=url||"#contacto";button.target=/^https?:\/\//i.test(url)?"_blank":"";button.rel=/^https?:\/\//i.test(url)?"noopener":""}
-    function hydrate(){document.querySelectorAll("[data-brand]").forEach(el=>el.textContent=config.brandName);document.querySelectorAll("[data-logo]").forEach(img=>{img.src=config.logo||logoSvg();img.alt=`Logo ${config.brandName}`});$("heroEyebrow").textContent=config.heroEyebrow;$("heroTitle").textContent=config.heroTitle;$("heroText").textContent=config.heroText;if($("heroCardImage"))$("heroCardImage").src=config.heroCardImage;if($("heroCardTitle"))$("heroCardTitle").textContent=config.heroCardTitle;if($("heroCardText"))$("heroCardText").textContent=config.heroCardText;renderAnnouncement();updateAmbassadorButton();$("contactPhoneText").textContent=config.whatsapp;$("contactEmailText").textContent=config.email;$("waFloat").href=whatsappUrl(`Hola ${config.brandName}, quiero información sobre la tienda.`);updatePaymentBox();applyTheme()}
+    function socialUrl(value,network){const raw=text(value).trim();if(!raw)return "";if(network==="instagram"&&raw.startsWith("@"))return "https://instagram.com/"+raw.slice(1);return /^https?:\/\//i.test(raw)?raw:"https://"+raw.replace(/^\/+/,"")}
+    function applySocialLinks(){const entries=[['instagram','instagramLink',null],['tiktok','tiktokLink','tiktokContactRow'],['facebook','facebookLink','facebookContactRow'],['website','websiteLink','websiteContactRow']];entries.forEach(([key,id,row])=>{const link=$(id),url=socialUrl(config[key],key);if(!link)return;if(row)$(row).hidden=!url;if(url){link.href=url;if(key==='instagram')link.textContent=text(config[key]).startsWith('@')?config[key]:url.replace(/^https?:\/\/(www\.)?/,'').replace(/\/$/,'')}});
+    }
+    function hydrate(){document.querySelectorAll("[data-brand]").forEach(el=>el.textContent=config.brandName);document.querySelectorAll("[data-logo]").forEach(img=>{img.src=config.logo||logoSvg();img.alt=`Logo ${config.brandName}`});$("heroEyebrow").textContent=config.heroEyebrow;$("heroTitle").textContent=config.heroTitle;$("heroText").textContent=config.heroText;if($("heroCardImage"))$("heroCardImage").src=config.heroCardImage;if($("heroCardTitle"))$("heroCardTitle").textContent=config.heroCardTitle;if($("heroCardText"))$("heroCardText").textContent=config.heroCardText;renderAnnouncement();updateAmbassadorButton();$("contactPhoneText").textContent=config.whatsapp;$("contactEmailText").textContent=config.email;applySocialLinks();$("waFloat").href=whatsappUrl(`Hola ${config.brandName}, quiero información sobre la tienda.`);updatePaymentBox();applyTheme()}
     function logoSvg(){return "data:image/svg+xml;charset=UTF-8,"+encodeURIComponent(`<svg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 200 200'><rect width='200' height='200' rx='38' fill='#eadfce'/><path d='M48 116 100 38l52 78-52 52Z' fill='#5b3b2a'/><path d='M70 116h60L100 64Z' fill='#c99b5b'/><text x='100' y='184' text-anchor='middle' font-family='Georgia' font-size='26' fill='#14110e'>Sublime</text></svg>`)}
 
     function categories(){return ["Todos",...new Set(products.map(p=>p.category).filter(Boolean))]}
@@ -954,7 +957,12 @@ import {
     function couponLine(){const selected=activeCoupon();if(selected){const code=selected.code||selected.codigo;return selected.source==="embajador"?`${code} / Embajadora: ${selected.nombreEmbajador||"Sin nombre"}`:code}return coupon?coupon:"Sin cupón"}
     function couponOrderBlock(){const selected=activeCoupon();if(!selected)return `Cupon: ${coupon||"Sin cupón"}`;const code=selected.code||selected.codigo||coupon;return selected.source==="embajador"?`Cupon: ${code}\nEmbajadora: ${selected.nombreEmbajador||"Sin nombre"}`:`Cupon: ${code}`}
     function buildOrderText(){const location=text($("customerMap")?.value),address=text($("customerCity")?.value),mrw=text($("mrwAddress")?.value),delivery=$("deliveryType").value,deliveryText=delivery==="MRW"&&mrw?`${delivery} (${mrw})`:delivery;return `Hola ${config.brandName}, quiero confirmar este pedido:\n\n${cartLines().map(({row,p})=>`- ID ${p.externalId||p.id}/ ${p.name} x${row.qty}: ${money(productPrice(p)*row.qty)}`).join("\n")}\n\n${couponOrderBlock()}\nDescuento: ${money(discount())}\n\nTotal: ${money(total())}${config.showBs?` / ${bs(total())}`:""}\n\nCliente: ${$("customerName").value}\nWhatsApp: ${$("customerPhone").value}\nDireccion : ${address}${location?` (${location})`:""}\nEntrega: ${deliveryText}\nPago: ${$("paymentMethod").value}\nReferencia de pago: ${$("paymentReference")?.value||""}\nO foto del comprobante${$("paymentProof")?.files?.[0]?`: cargada en la página`:""}\nNota: ${$("orderNote").value||"Sin nota"}`;}
-    async function proofMeta(){const file=$("paymentProof")?.files?.[0];if(!file)return null;return {name:file.name,type:file.type,size:file.size,attached:true}}
+    async function proofMeta(){
+      const file=$("paymentProof")?.files?.[0];
+      if(!file)return null;
+      const url=await uploadProductImage(file);
+      return {name:file.name,type:file.type,size:file.size,url,stored:"cloudinary"};
+    }
     function syncInventoryProductStock(product, qtySold){
       const nextStock=Math.max(0,number(product.stock,0)-qtySold);
       const nextSold=Math.max(0,number(product.sold,0)+qtySold);
@@ -1002,7 +1010,7 @@ import {
         renderSales();
         $("successBox").classList.add("active");
         window.open(whatsappUrl(message),"_blank","noopener");
-        toast("Pedido confirmado y guardado localmente. Stock actualizado.");
+        toast("Pedido confirmado. Stock actualizado y comprobante guardado.");
       }catch(error){
         console.error("No se pudo confirmar el pedido",error);
         toast("No pude confirmar el pedido. Revisa tus datos e inténtalo de nuevo.");
@@ -1119,7 +1127,6 @@ import {
     function legacySyncAdminProducts(){const byId=new Map(products.map(p=>[String(p.id),p]));products=filterDeletedProducts([...document.querySelectorAll("[data-admin-product-id]")].map(card=>{const id=String(card.dataset.adminProductId||cryptoRandom());const current=byId.get(id)||{id};const get=f=>card.querySelector(`[data-p-field="${f}"]`)?.value;return normalizeProduct({...current,id,name:get("name"),sku:get("sku"),price:get("price"),stock:get("stock"),category:get("category"),colors:get("colors"),material:get("material"),desc:get("desc"),images:get("images"),published:true})}));config.products=products}
     function legacyAutosaveProducts(){if(legacyAutosaveProducts.lock)return;clearTimeout(legacyAutosaveProducts.t);legacyAutosaveProducts.t=setTimeout(()=>{if(legacyAutosaveProducts.lock)return;syncAdminProducts();persist();renderCategories();renderProducts();renderAdminProducts();updateOwnerStats();setDirty(false)},550)}
     function legacyAddAdminProduct(){products.unshift(normalizeProduct({id:cryptoRandom(),name:"Nueva pieza",category:"Collares",material:"Acero inoxidable",price:10,stock:1,colors:"Dorado",desc:"Descripción detallada de la pieza.",images:FALLBACK_IMAGE,published:true}));config.products=products;persist();renderCategories();renderAdminProducts();renderProducts();setDirty(false);toast("Producto creado")}
-    function readImageFile(file){return new Promise((resolve,reject)=>{if(!/image\/(png|jpe?g|webp)/.test(file.type))return reject("Usa una imagen PNG, JPG o WEBP");if(file.size>8000000)return reject("Imagen muy pesada. Máximo 8 MB");const reader=new FileReader();reader.onload=()=>{const image=new Image();image.onload=()=>{const maxSize=720,scale=Math.min(1,maxSize/Math.max(image.width,image.height)),canvas=document.createElement("canvas");canvas.width=Math.max(1,Math.round(image.width*scale));canvas.height=Math.max(1,Math.round(image.height*scale));canvas.getContext("2d").drawImage(image,0,0,canvas.width,canvas.height);resolve(canvas.toDataURL("image/jpeg",.65))};image.onerror=reject;image.src=reader.result};reader.onerror=reject;reader.readAsDataURL(file)})}
     function validateOriginalImage(file){if(!/image\/(png|jpe?g|webp)/.test(file.type))throw new Error("Usa una imagen PNG, JPG o WEBP");if(file.size>10*1024*1024)throw new Error("Imagen muy pesada. Máximo 10 MB");return file}
     const CLOUDINARY_CLOUD_NAME="ztf1nyak";
     const CLOUDINARY_UPLOAD_PRESET="sublime_products";
@@ -1154,6 +1161,29 @@ import {
       }catch(error){
         console.error("No se pudo subir la imagen a Cloudinary",error);
         throw new Error(cloudinaryErrorMessage(error));
+      }
+    }
+    // Kept for legacy controls that may still exist in a saved page revision.
+    // It now returns a Cloudinary URL, never a compressed Base64 payload.
+    async function readImageFile(file){return uploadProductImage(file)}
+    async function uploadAdminImage(input,targetId,label){
+      const file=input?.files?.[0];
+      if(!file)return;
+      const target=$(targetId);
+      if(!target)throw new Error("No encontré el campo de destino de la imagen.");
+      input.disabled=true;
+      try{
+        const url=await uploadProductImage(file);
+        target.value=url;
+        collectAdmin();
+        persist();
+        hydrate();
+        renderProducts();
+        setDirty(false);
+        toast(`${label} subida a Cloudinary y guardada sin compresión`);
+      }finally{
+        input.value="";
+        input.disabled=false;
       }
     }
     function extractRateValue(data,field){
@@ -1852,6 +1882,7 @@ import {
       stars.forEach(star=>{star.onclick=()=>apply(star.dataset.reviewStar);})
       apply(hidden.value||5);
     }
+    let proofPreviewUrl="";
     function setupProofPreview(){
       const input=$("paymentProof");
       const preview=$("proofPreview");
@@ -1860,11 +1891,12 @@ import {
       if(!input||!preview||!img||!name)return;
       input.onchange=()=>{
         const file=input.files?.[0];
+        if(proofPreviewUrl){URL.revokeObjectURL(proofPreviewUrl);proofPreviewUrl=""}
         if(!file){preview.classList.add("hidden");img.removeAttribute("src");name.textContent="";return}
         if(!/^image\//.test(file.type)){toast("Usa una imagen PNG, JPG o WEBP como comprobante");preview.classList.add("hidden");return}
         preview.classList.remove("hidden");
-        const url=URL.createObjectURL(file);
-        img.src=url;
+        proofPreviewUrl=URL.createObjectURL(file);
+        img.src=proofPreviewUrl;
         name.textContent=file.name;
       };
     }
@@ -2107,7 +2139,7 @@ import {
       const set=(id,value)=>{const element=$(id);if(element)element.value=value??""};
       const checked=id=>!!$(id)?.checked;
       const dbApi=databaseApiConfig();
-      set("adminBrand",config.brandName);set("adminWhatsapp",config.whatsapp);set("adminEmail",config.email);set("adminLogo",config.logo);
+      set("adminBrand",config.brandName);set("adminWhatsapp",config.whatsapp);set("adminEmail",config.email);set("adminInstagram",config.instagram||DEFAULT.instagram);set("adminTiktok",config.tiktok||"");set("adminFacebook",config.facebook||"");set("adminWebsite",config.website||"");set("adminLogo",config.logo);
       set("adminHeroEyebrow",config.heroEyebrow);set("adminHeroTitle",config.heroTitle);set("adminHeroText",config.heroText);set("adminHeroImage",config.heroImage);
       set("adminAnnouncementText",config.announcementText||DEFAULT.announcementText);set("adminAmbassadorButtonText",config.ambassadorButtonText||DEFAULT.ambassadorButtonText);set("adminAmbassadorButtonUrl",config.ambassadorButtonUrl||"");
       set("adminRate",config.rate);set("adminRateApi",config.rateApi);set("adminRateField",config.rateField);set("adminShipCaracas",config.shipCaracas);set("adminShipNational",config.shipNational);set("adminFreeShipping",config.freeShipping);
@@ -2120,7 +2152,7 @@ import {
     }
     function collectAdmin(){
       const value=id=>$(id)?.value??"";
-      config.brandName=value("adminBrand");config.whatsapp=value("adminWhatsapp");config.email=value("adminEmail");config.logo=value("adminLogo");config.heroEyebrow=value("adminHeroEyebrow");config.heroTitle=value("adminHeroTitle");config.heroText=value("adminHeroText");config.heroImage=value("adminHeroImage");
+      config.brandName=value("adminBrand");config.whatsapp=value("adminWhatsapp");config.email=value("adminEmail");config.instagram=value("adminInstagram");config.tiktok=value("adminTiktok");config.facebook=value("adminFacebook");config.website=value("adminWebsite");config.logo=value("adminLogo");config.heroEyebrow=value("adminHeroEyebrow");config.heroTitle=value("adminHeroTitle");config.heroText=value("adminHeroText");config.heroImage=value("adminHeroImage");
       config.announcementEnabled=$("adminAnnouncementEnabled")?.checked!==false;config.announcementText=value("adminAnnouncementText")||DEFAULT.announcementText;config.ambassadorButtonText=value("adminAmbassadorButtonText")||DEFAULT.ambassadorButtonText;config.ambassadorButtonUrl=value("adminAmbassadorButtonUrl");
       config.rate=number(value("adminRate"),config.rate);config.rateApi=value("adminRateApi");config.rateField=value("adminRateField")||"promedio";config.shipCaracas=number(value("adminShipCaracas"));config.shipNational=number(value("adminShipNational"));config.freeShipping=number(value("adminFreeShipping"));
       config.couponCode=value("adminCouponCode");config.couponPercent=number(value("adminCouponPercent"));config.wholesaleDiscount=number(value("adminWholesaleDiscount"));config.bankData=value("adminBankData");config.zelleData=value("adminZelleData");config.paypalData=value("adminPaypalData");config.googleSheetsWebhook=value("adminGoogleSheetsWebhook");config.driveCatalogUrl=value("adminDriveUrl");config.driveTarget=value("adminDriveTarget")||"append";if(config.driveTarget==="bank")config.driveTarget="append";
@@ -2152,6 +2184,3 @@ import {
     ensureCouponAdminHost();renderCouponAdmin();renderWholesaleAdmin();if($("adminGoogleSheetsWebhook")){$("adminGoogleSheetsWebhook").value=config.googleSheetsWebhook||"";$("adminGoogleSheetsWebhook").addEventListener("input",e=>{config.googleSheetsWebhook=e.target.value.trim()})}
     localStorage.removeItem(LS_OWNER);clearWholesaleAccess();prioritizeCatalog();cargarProductos();migrateBrandLogo();document.querySelectorAll("#adminDrawer button").forEach(btn=>btn.type="button");setupCatalogPaste();applyTheme();hydrate();renderCategories();renderizarTiendaPublica();startFirestoreCatalog();startAmbassadorProgram();renderReviews();renderAdminReviews();renderSales();renderAmbassadorAdmin();setupReviewStars();setupProofPreview();setOwner(false);lucide.createIcons();scheduleRateSync();if(config.driveAutoSync&&config.driveCatalogUrl)syncDriveCatalog(true);
   
-
-
-
