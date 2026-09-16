@@ -1,0 +1,19 @@
+rules_version = '2';
+
+service cloud.firestore {
+  match /databases/{database}/documents {
+    // Compatibilidad con el panel actual de Hostinger.
+    // El panel no usa Firebase Authentication todavía.
+    match /productos/{productId} {
+      allow read, write: if true;
+    }
+
+    match /cupones_embajadores/{couponId} {
+      allow read, write: if true;
+    }
+
+    match /historial_usos_cupones/{historyId} {
+      allow read, write: if true;
+    }
+  }
+}

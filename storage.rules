@@ -1,0 +1,14 @@
+rules_version = '2';
+
+service firebase.storage {
+  match /b/{bucket}/o {
+    // Temporary rule for the current public ADMIN panel. It accepts only
+    // optimized product images and rejects every other Storage path.
+    match /productos/{productId}/{fileName} {
+      allow read: if true;
+      allow write: if request.resource != null
+                   && request.resource.size < 8 * 1024 * 1024
+                   && request.resource.contentType.matches('image/(jpeg|png|webp)');
+    }
+  }
+}
